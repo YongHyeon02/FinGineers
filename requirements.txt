@@ -1,0 +1,15 @@
+# Core
+yfinance
+pandas
+numpy
+
+# LLM + NAVER HyperCLOVA X
+langchain
+langchain-naver
+python-dotenv
+httpx
+
+# Dev / Test / Utils
+pytest
+loguru
+rich
