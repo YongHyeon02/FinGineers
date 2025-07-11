@@ -15,7 +15,7 @@ def _load_csv(path) -> Dict[str, str]:
     (확장자는 KOSPI→.KS, KOSDAQ→.KQ 로 자동 부착)
     """
     df = pd.read_csv(path, sep=",", encoding="utf-8-sig")      # 헤더: 종목코드, 종목명
-    ext = ".KS" if "KOSPI" in path.name.upper() else ".KQ"
+    ext = ".KS" if "kospi" in path.name.lower() else ".KQ"
     mapping: Dict[str, str] = {}
 
     for _, row in df.iterrows():
@@ -40,3 +40,4 @@ KOSDAQ_TICKERS: List[str] = list(KOSDAQ_MAP.values())
 
 # 전체 유니버스 (≒ Task1 거래량 Top N 등에서 사용)
 GLOBAL_TICKERS: List[str] = KOSPI_TICKERS + KOSDAQ_TICKERS
+NAME_BY_TICKER: Dict[str, str] = {v: k for k, v in {**KOSPI_MAP, **KOSDAQ_MAP}.items()}

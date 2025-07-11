@@ -31,9 +31,9 @@ with CSV_PATH.open(encoding=ENCODING, newline="") as f:
         actual = route(q).strip()
 
         if actual == expected:
-            print(f"✅ PASS: {q} → {actual}", flush=True)
+            print(f"✅ PASS: {q} → {actual}\n", flush=True)
         else:
-            # 실패한 질문만 저장 (출력은 나중에)
+            print(f"❌ FAIL: {q} \nexpected: {expected!r}\nactual: {actual!r}\n", flush=True)
             MISMATCHES.append((q, expected, actual))
 
 # -------------------------------------------------------------
@@ -43,9 +43,9 @@ if not MISMATCHES:
 
 print(f"\n❌ {len(MISMATCHES)}개 질문이 불일치:\n")
 for i, (q, exp, act) in enumerate(MISMATCHES, 1):
-    print(f"[{i}] 질문   : {q}")
-    print(f"    예상   : {exp}")
-    print(f"    실제   : {act}\n")
+    print(f"질문   : {q}")
+    print(f"예상   : {exp}")
+    print(f"실제   : {act}\n")
 
 # 실패 상태 코드
 sys.exit(1)

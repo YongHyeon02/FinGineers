@@ -56,28 +56,22 @@ def _lookup_korean(name: str) -> Optional[str]:
 
 def to_ticker(identifier: str) -> str:
     """
-    1️⃣ 그대로 매핑 시도
-    2️⃣ 실패하면 조사 1글자 제거 후 재시도
-    3️⃣ 둘 다 실패 → ValueError
+    1) _STATIC_MAP (KOSPI/KOSDAQ CSV + 수동 보강)에서 먼저 찾기
+    2) 없으면 yfinance Lookup/Search 시도
+    3) 그래도 없으면 그대로 대문자 반환
     """
     identifier = identifier.strip()
 
-    # 한글 포함 여부 판단
-    if re.search(r"[가-힣]", identifier):
-        # (1) 원본 그대로
-        ticker = _lookup_korean(identifier)
+    # 1️⃣ 조사 제거 1차·2차 버전 모두 사전 검색
+    for name_try in (identifier, _strip_particle(identifier)):
+        ticker = _STATIC_MAP.get(name_try)
         if ticker:
             return ticker
 
-        # (2) 조사 제거 버전
-        stripped = _strip_particle(identifier)
-        if stripped != identifier:
-            ticker = _lookup_korean(stripped)
-            if ticker:
-                return ticker
+    # 2️⃣ yfinance Lookup/Search (한글·영문 모두 시도)
+    fallback = _fallback_lookup(identifier)
+    if fallback:
+        return fallback
 
-        # (3) 최종 실패
-        raise ValueError(f"'{identifier}' → 티커 매핑 실패")
-
-    # 알파벳/숫자 혼합 → 그대로
+    # 3️⃣ 마지막으로 그대로 사용
     return identifier.upper()
