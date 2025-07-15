@@ -38,3 +38,12 @@ KOSDAQ_TICKERS: List[str] = list(KOSDAQ_MAP.values())
 
 GLOBAL_TICKERS: List[str] = KOSPI_TICKERS + KOSDAQ_TICKERS
 NAME_BY_TICKER: Dict[str, str] = {v: k for k, v in {**KOSPI_MAP, **KOSDAQ_MAP}.items()}
+
+INDEX_TICKERS = [
+    "^KS11",   # KOSPI Composite
+    "^KS200",  # KOSPI 200
+    "^KQ11",   # KOSDAQ Composite
+    "^KQ100",  # KOSDAQ 100
+]
+
+ALL_TICIKERS = GLOBAL_TICKERS + INDEX_TICKERS

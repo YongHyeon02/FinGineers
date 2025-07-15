@@ -1,0 +1,27 @@
+1 Failed download:
+['033180.KS']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+
+1 Failed download:
+['0030R0.KS']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+
+1 Failed download:
+['099520.KQ']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+
+3 Failed downloads:
+['0037T0.KQ']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+['111870.KQ', '226360.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-06-01 -> 2025-07-01)')
+
+1 Failed download:
+['463020.KQ']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+
+1 Failed download:
+['462310.KQ']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+
+2 Failed downloads:
+['234030.KQ', '331740.KQ']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+
+1 Failed download:
+['174880.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-06-01 -> 2025-07-01)')
+
+1 Failed download:
+['^KQ100']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-06-01 -> 2025-07-01)')
