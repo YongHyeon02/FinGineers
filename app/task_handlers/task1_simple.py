@@ -21,12 +21,13 @@ from app.universe import (
     KOSPI_TICKERS, KOSDAQ_TICKERS, GLOBAL_TICKERS, NAME_BY_TICKER,
     KOSPI_MAP, KOSDAQ_MAP,
 )
-from app.market_utils import is_common_share
+from app.utils import _is_zero_volume
 
 # ──────────────────────────────
 FIELD_MAP = {"종가": "Close", "시가": "Open", "고가": "High", "저가": "Low", "등락률": "%Change"}
 TICK2NAME: Dict[str, str] = {v: k for k, v in {**KOSPI_MAP, **KOSDAQ_MAP}.items()}
 
+_LOOKBACK_DAYS = 7                      # 지난 7 일 안에서 직전 거래일 탐색
 # ──────────────────────────────
 # 0. 유틸
 _PARTICLE_CUT = re.compile(r"[의은는이가를]\s*$")
@@ -82,33 +83,29 @@ def _answer_price(q: str) -> str:
         price = get_price_on_date(ticker, date, field)
     except Exception:
         price = None
-
-    # ▶ 2차: .KS ↔ .KQ 스위치 (한국 주식 한정)
-    if price is None and ticker.endswith((".KS", ".KQ")):
-        alt = ticker[:-3] + (".KQ" if ticker.endswith(".KS") else ".KS")
-        try:
-            price = get_price_on_date(alt, date, field)
-            if price is not None:
-                ticker = alt
-        except Exception:
-            price = None
-
-    # ▶ 3차: 실패 처리
+    
+    # if price is None:
+    #     return f"해당 날짜 {field_ko} 데이터 없음"
+        
+    vol = get_price_on_date(ticker, date, "Volume")
+    if vol in (None, 0) or (isinstance(vol, float) and math.isnan(vol)):
+        # 시가/고가/저가/종가 → 0원, 등락률 → 0%
+        return "0원" if field_ko != "등락률" else "0%"
+    
     if field_ko == "등락률":
         prev     = _prev_bday(date)
         today_c  = get_price_on_date(ticker, date, "Close")
         prev_c   = get_price_on_date(ticker, prev, "Close")
-
-        # 전일 종가가 없으면 .KS↔.KQ 확장자 반전해 한 번 더 시도
-        if prev_c is None and ticker.endswith((".KS", ".KQ")):
-            alt     = ticker[:-3] + (".KQ" if ticker.endswith(".KS") else ".KS")
-            prev_c  = get_price_on_date(alt, prev, "Close")
+        today_vol = get_price_on_date(ticker, date, "Volume")
+        prev_vol  = get_price_on_date(ticker, prev, "Volume")
 
         if (
-            today_c is None or
+            today_c in (None, 0) or
             prev_c in (None, 0) or
             (isinstance(prev_c, float) and math.isnan(prev_c))
         ):
+            return f"{date} 등락률 데이터 없음"
+        if any(v in (None, 0) or (isinstance(v, float) and math.isnan(v)) for v in (today_vol, prev_vol)):
             return f"{date} 등락률 데이터 없음"
 
         pct = (today_c - prev_c) / prev_c * 100.0
@@ -158,9 +155,9 @@ def _download_two_days(date: str, tickers: List[str]) -> pd.DataFrame:
 
 def _updown_count_yf(date: str, market: str | None, direction: str) -> str:
     tickers = (
-        [t for t in KOSPI_TICKERS if is_common_share(t)] if market == "KOSPI" else
-        [t for t in KOSDAQ_TICKERS if is_common_share(t)] if market == "KOSDAQ" else
-        [t for t in GLOBAL_TICKERS if is_common_share(t)]
+        KOSPI_TICKERS  if market == "KOSPI"  else
+        KOSDAQ_TICKERS if market == "KOSDAQ" else
+        GLOBAL_TICKERS
     )
 
     df = _download_two_days(date, tickers)
@@ -171,6 +168,8 @@ def _updown_count_yf(date: str, market: str | None, direction: str) -> str:
     for t in df.columns.get_level_values(0).unique():
         try:
             sub = _slice_single(df, t)
+            if _is_zero_volume(sub, idx=1):
+                continue
         except KeyError:
             continue
         if len(sub) < 2 or "Close" not in sub.columns:
@@ -199,8 +198,14 @@ def _answer_top_mover(m: re.Match) -> str:
     wk = _weekend_msg(date, "(데이터 없음)")
     if wk: return wk
     
-    tickers = KOSPI_TICKERS if market == "KOSPI" else KOSDAQ_TICKERS
-    df = _download_two_days(date, tickers)
+    tickers = (
+        KOSPI_TICKERS  if market == "KOSPI"  else
+        KOSDAQ_TICKERS if market == "KOSDAQ" else
+        GLOBAL_TICKERS
+    )
+    start = (pd.Timestamp(date) - pd.Timedelta(days=_LOOKBACK_DAYS)).strftime("%Y-%m-%d")
+    nxt   = _next_day(date)    # yfinance end 파라미터는 exclusive
+    df = _download(tuple(tickers), start=start, end=nxt, interval="1d")
     if df.empty:
         return f"{date} 데이터 없음"
 
@@ -208,13 +213,25 @@ def _answer_top_mover(m: re.Match) -> str:
     for t in tickers:
         try:
             sub = _slice_single(df, t)
-            if len(sub) < 2 or "Close" not in sub.columns:
+            if date not in sub.index:                  # 당일 데이터 없으면 skip
                 continue
-            prev_c, today_c = sub["Close"].iloc[0], sub["Close"].iloc[1]
-            if pd.isna(prev_c) or pd.isna(today_c) or prev_c == 0:
+            if _is_zero_volume(sub):                   # 당일 거래량 0/NaN skip
                 continue
+
+            today_c = sub.loc[date, "Close"]
+            if pd.isna(today_c) or today_c == 0:
+                continue
+
+            # ▼ “오늘 이전” 구간에서 마지막으로 유효한 종가 찾기
+            prev_series = sub.loc[:date, "Close"].iloc[:-1].dropna()
+            if prev_series.empty:
+                continue
+            prev_c = prev_series.iloc[-1]
+            if prev_c == 0:
+                continue
+
             pct_change[t] = (today_c - prev_c) / prev_c * 100.0
-        except KeyError:
+        except Exception:
             continue
 
     if not pct_change:
@@ -238,7 +255,11 @@ def _answer_top_price(m: re.Match) -> str:
         return wk
     n = int(n_str) if n_str else 1
     
-    tickers = KOSPI_TICKERS if market == "KOSPI" else KOSDAQ_TICKERS
+    tickers = (
+        KOSPI_TICKERS  if market == "KOSPI"  else
+        KOSDAQ_TICKERS if market == "KOSDAQ" else
+        GLOBAL_TICKERS
+    )
     nxt = _next_day(date)
     df = _download(tuple(tickers), start=date, end=nxt, interval="1d")
     if df.empty:
@@ -248,6 +269,8 @@ def _answer_top_price(m: re.Match) -> str:
     for t in tickers:
         try:
             sub = _slice_single(df, t)
+            if _is_zero_volume(sub):
+                continue
             if sub.empty or "Close" not in sub.columns:
                 continue
             val = sub["Close"].iloc[0]
@@ -413,7 +436,11 @@ _PATTERNS = [
 # ————————————————————————————
 
 def _answer_traded_count_yf(date: str, market: str) -> str:
-    tickers = KOSPI_TICKERS if market == "KOSPI" else KOSDAQ_TICKERS
+    tickers = (
+        KOSPI_TICKERS  if market == "KOSPI"  else
+        KOSDAQ_TICKERS if market == "KOSDAQ" else
+        GLOBAL_TICKERS
+    )
     nxt = _next_day(date)
     df = _download(tuple(tickers), start=date, end=nxt, interval="1d")
     if df.empty:

@@ -1,44 +1,69 @@
-# scripts/export_tickers.py
+# run export_tickers.py -> run exclude_REITs_and_SPAC.py
 
-from pykrx import stock
 import pandas as pd
+import yfinance as yf
+from tqdm import tqdm
+from datetime import datetime
+from pykrx import stock
 
-def export_market_tickers(
-    market: str,
-    filename: str,
-    date: str | None = None,
-    encoding: str = "utf-8-sig"
-) -> None:
+# pykrx에서 쓰는 시장 코드 매핑
+MARKETS = {
+    "kospi": {"krx": "KOSPI",   "suffix": ".KS"},
+    "kosdaq": {"krx": "KOSDAQ", "suffix": ".KQ"},
+}
+
+def fetch_krx_list(market: str) -> pd.DataFrame:
     """
-    특정 시장의 전체 종목(티커+종목명)을 CSV로 저장합니다.
-
-    Args:
-      market: "KOSPI" 또는 "KOSDAQ"
-      filename: 저장할 CSV 파일 경로 (예: "kospi.csv")
-      date: 조회일자(YYYYMMDD). None이면 오늘 기준.
-      encoding: CSV 인코딩 (기본 "utf-8-sig")
+    pykrx를 이용해 market("KOSPI"/"KOSDAQ")의
+    모든 종목(보통주+우선주 등) 목록을 가져와
+    종목코드(str), 종목명을 반환
     """
-    # 1) 조회 날짜 결정
-    if date is None:
-        date = pd.Timestamp.today().strftime("%Y%m%d")
+    # 오늘 날짜 기준 YYYYMMDD 포맷
+    today = datetime.today().strftime("%Y%m%d")
+    # 티커 리스트와 이름 리스트
+    tickers = stock.get_market_ticker_list(today, market=market)
+    names   = [stock.get_market_ticker_name(t) for t in tickers]
 
-    # 2) 티커 리스트 가져오기
-    tickers = stock.get_market_ticker_list(market=market, date=date)
+    df = pd.DataFrame({
+        "종목코드": tickers,
+        "종목명": names
+    })
+    return df
 
-    # 3) 종목명 쌍 생성
-    data = [
-        {"종목코드": t, "종목명": stock.get_market_ticker_name(t)}
-        for t in tickers
-    ]
+def optional_yahoo_check(df: pd.DataFrame, suffix:str, keep_only_tradable=True) -> pd.DataFrame:
+    """
+    yfinance에 실제 존재하는 .KS 티커만 남기려면 verify_on_yahoo=True 로 호출
+    """
+    if not keep_only_tradable:
+        df["종목코드"] = df["종목코드"] + suffix
+        return df
 
-    # 4) DataFrame 생성 및 CSV 저장
-    df = pd.DataFrame(data)
-    df = df.sort_values("종목코드").reset_index(drop=True)
-    df.to_csv(filename, index=False, encoding=encoding)
+    valid = []
+    for code, name in tqdm(df.itertuples(index=False), total=len(df), desc=f"확인 중 ({suffix} 쿼리)"):
+        code_full = code + suffix
+        try:
+            yf.Ticker(code_full).info
+            valid.append((code_full, name))
+        except Exception:
+            pass
+    return pd.DataFrame(valid, columns=["종목코드", "종목명"])
 
-    print(f"✅ {market} {date} 기준 {len(df)}개 종목을 '{filename}'로 저장했습니다.")
+def build_all_csvs(out_dir=".", verify_on_yahoo=False):
+    """
+    MARKETS에 정의된 각 시장별로 CSV 파일 생성
+    → kospi_tickers.csv, kosdaq_tickers.csv
+    """
+    for name, info in MARKETS.items():
+        df = fetch_krx_list(info["krx"])
+        if verify_on_yahoo:
+            df = optional_yahoo_check(df, suffix=info["suffix"], keep_only_tradable=True)
+        else:
+            df["종목코드"] = df["종목코드"] + info["suffix"]
 
+        path = f"{out_dir}/{name}_tickers.csv"
+        df.to_csv(path, index=False, encoding="utf-8-sig")
+        print(f"[완료] {path} · 종목 수: {len(df)}")
 
 if __name__ == "__main__":
-    export_market_tickers("KOSPI", "kospi_tickers.csv")
-    export_market_tickers("KOSDAQ", "kosdaq_tickers.csv")
+    # verify_on_yahoo=True 로 실행하면 Yahoo에 존재하는 종목만 필터링 -> 차이 없음.
+    build_all_csvs(out_dir=".", verify_on_yahoo=False)

@@ -14,10 +14,10 @@ from app.universe import KOSPI_MAP, KOSDAQ_MAP
 _STATIC_MAP: Dict[str, str] = {}
 _STATIC_MAP.update(KOSPI_MAP)
 _STATIC_MAP.update(KOSDAQ_MAP)
-_STATIC_MAP.update({           # 필요 시 수동 보강
-    "마이크로소프트": "MSFT",
-    "애플": "AAPL",
-})
+# _STATIC_MAP.update({           # 필요 시 수동 보강
+#     "마이크로소프트": "MSFT",
+#     "애플": "AAPL",
+# })
 
 # --------------- 2) 헬퍼 ---------------
 @lru_cache(maxsize=512)

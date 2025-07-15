@@ -65,7 +65,7 @@ def get_price_on_date(ticker: str, date: str, field: str = "Close") -> float:
     target = dt.datetime.strptime(date, "%Y-%m-%d")
     start  = date
     end    = (target + dt.timedelta(days=1)).strftime("%Y-%m-%d")
-
+    
     # ① download() 3회 백오프 재시도
     for i in range(3):            # 0,1,2
         try:
