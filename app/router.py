@@ -7,6 +7,7 @@ from app.task_handlers import (
     task3_signal,
     task4_ambiguous,
 )
+
 from app.parsers import parse_ambiguous
 
 _FAIL = "질문을 이해하지 못했습니다."
@@ -40,9 +41,8 @@ def route(question: str) -> str:
     #     return ans
     
     # # 2️⃣ Task 4 – 모호 질의(최근 급등주, 고점 대비 낙폭 등)
-    # if parse_ambiguous(question):
-    #     if (ans := _safe_handle(task4_ambiguous.handle, question)):
-    #         return ans
+    if parse_ambiguous(question):
+        return task4_ambiguous.handle(question)
 
     # 모두 실패한 경우
     return _FAIL

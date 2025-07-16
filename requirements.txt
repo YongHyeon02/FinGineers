@@ -8,6 +8,7 @@ langchain
 langchain-naver
 python-dotenv
 httpx
+requests
 
 # Dev / Test / Utils
 pytest
