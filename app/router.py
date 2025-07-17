@@ -1,48 +1,181 @@
 # app/router.py
 from __future__ import annotations
-
+import logging
+from typing import Callable, Optional, Dict, Any
+from app import session                  # ↩︎ 간단한 in-mem 세션 캐시 (앞서 제안)
+from app.llm_bridge import extract_params, fill_missing
 from app.task_handlers import (
     task1_simple,
     task2_condition,
     task3_signal,
     task4_ambiguous,
 )
-from app.parsers import parse_ambiguous
 
+logger = logging.getLogger(__name__)
 _FAIL = "질문을 이해하지 못했습니다."
 
 
-def _safe_handle(handler, question: str) -> str | None:
-    """
-    핸들러 호출 → _FAIL이 아니면 성공으로 간주하여 바로 반환.
-    예외 발생 시 None 반환.
-    """
+# ──────────────────────────────────────────────
+# 1.  task 메타 정의  (추가 시 여기만 수정)
+# ──────────────────────────────────────────────
+HandlerFn = Callable[[str, dict], str]      # (question, params) -> answer
+
+TASK_REGISTRY: Dict[str, dict] = {
+    # task명        handler                 필수필드 집합
+    "단순조회":    {"fn": task1_simple.handle,     "req": {"date","metrics","tickers"}},
+    "상승종목수":  {"fn": task1_simple.handle,     "req": {"date"}},
+    "하락종목수":  {"fn": task1_simple.handle,     "req": {"date"}},
+    "거래종목수":  {"fn": task1_simple.handle,     "req": {"date"}},
+    "시장순위":    {"fn": task1_simple.handle,     "req": {"date","metrics","rank_n"}},
+    # "conditional": {"fn": task2_condition.handle,  "req": {"date","conditions"}},
+    # "signal":      {"fn": task3_signal.handle,     "req": {"date"}},
+}
+
+# ──────────────────────────────────────────────
+def _safe_handle(fn: HandlerFn, question: str, params: dict) -> Optional[str]:
     try:
-        out = handler(question)
-        return out if out != _FAIL else None
-    except Exception:
+        out = fn(question, params)
+        return out if out and out != _FAIL else None
+    except Exception as e:
+        logger.exception("%s 실행 오류: %s", fn.__name__, e)
         return None
 
+def _missing_fields(task: str, params: dict) -> set[str]:
+    """
+    task 별 필수 슬롯 누락 항목 계산
+    (빈 리스트도 누락으로 간주)
+    """
+    req = TASK_REGISTRY.get(task, {}).get("req", set())
+    miss = {k for k in req if not params.get(k)}
+    if "metrics" in req and not params.get("metrics"):
+        miss.add("metrics")
+    if "tickers" in req and not params.get("tickers"):
+        miss.add("tickers")
+    return miss
 
-def route(question: str) -> str:
+def _build_follow_up(missing: set[str]) -> str:
+    qmap = {
+        "date":    "어느 날짜 기준인지",
+        "metrics": "시가·종가·거래량 등 어떤 지표를 원하시는지",
+        "tickers": "조회할 종목명이 무엇인지",
+        "rank_n":  "상위 몇 개 종목을 원하시는지",
+        "conditions": "검색 조건(등락률·거래량 조건 등)이 무엇인지",
+        "market":  "KOSPI·KOSDAQ 중 어느 시장인지",                 # 지수 질문에 필요. 추후 확인 필요
+    }
+    asks = [qmap[f] for f in missing if f in qmap]
+    return "질문을 더 정확히 이해하기 위해 " + " / ".join(asks) + " 알려주세요."
+
+
+# ────────────────────────────── 메인 ──────────────────────────────
+def route(question: str, conv_id: str) -> str:
+    """
+    conv_id : 세션 ID (웹소켓 UUID, 슬랙 thread_ts 등)
+    """
     question = question.strip()
+    if not question:
+        return _FAIL
 
-    # 1️⃣ Task 1 – 단순 조회(가격·통계·순위 등)
-    #if (ans := _safe_handle(task1_simple.handle, question)):
-    #    return ans
+    # ── 1) 미완성 params 가 세션에 저장돼 있나?
+    pending = session.get(conv_id)
+    if pending:
+        filled: dict[str, Any] = {}
+        # 사용자가 보낸 follow-up 문장으로 슬롯 채우기
+        for slot in _missing_fields(pending["task"], pending):
+            v = fill_missing(question, slot)
+            if v:
+                filled.update(v)
 
-    # # 3️⃣ Task 2 – 조건검색
-    if (ans := _safe_handle(task2_condition.handle, question)):
-       return ans
+        pending.update(filled)
+        still_missing = _missing_fields(pending["task"], pending)
 
-    # # 4️⃣ Task 3 – 시그널 감지
-    # if (ans := _safe_handle(task3_signal.handle, question)):
-    #     return ans
+        if still_missing:                               # 여전히 비어 있음
+            session.set(conv_id, pending)
+            return _build_follow_up(still_missing)
+
+        # 모든 슬롯 충족 → 실행
+        session.clear(conv_id)
+        hinfo = TASK_REGISTRY[pending["task"]]
+        return _safe_handle(hinfo["fn"], question, pending) or _FAIL
+
+    # ── 2) 최초 질문 파싱
+    params = extract_params(question)
+    print(params)
+    task   = params.get("task")
+
+    # # 모호(unknown) → 급등주 등 Task4 로
+    # if task not in TASK_REGISTRY:
+    #     return task4_ambiguous.handle(question)
+
+    missing = _missing_fields(task, params)
+    if missing:                             # 정보 더 필요
+        session.set(conv_id, params)
+        return _build_follow_up(missing)
+
+    # ── 3) 즉시 실행
+    hinfo = TASK_REGISTRY[task]
+    return _safe_handle(hinfo["fn"], question, params) or _FAIL
+
+
+# def route(question: str, conv_id: str) -> str:
+#     question = question.strip()
+#     if not question:
+#         return _FAIL
     
-    # # 2️⃣ Task 4 – 모호 질의(최근 급등주, 고점 대비 낙폭 등)
-    # if parse_ambiguous(question):
-    #     if (ans := _safe_handle(task4_ambiguous.handle, question)):
-    #         return ans
+#     # 1️⃣ Task 1 – 단순 조회(가격·통계·순위 등)
+#     # if (ans := _safe_handle(task1_simple.handle, question)):
+#     #     return ans
 
-    # 모두 실패한 경우
-    return _FAIL
+#     # # 3️⃣ Task 2 – 조건검색
+#     # if (ans := _safe_handle(task2_condition.handle, question)):
+#     #     return ans
+
+#     # # 4️⃣ Task 3 – 시그널 감지
+#     # if (ans := _safe_handle(task3_signal.handle, question)):
+#     #     return ans
+    
+#     # # 2️⃣ Task 4 – 모호 질의(최근 급등주, 고점 대비 낙폭 등)
+#     # if parse_ambiguous(question):
+#     #     print("task4 실행됨")
+#     #     return task4_ambiguous.handle(question)
+
+#     # HCX → task 결정
+    
+#     # ────────────────── 1) 세션에 pending params 있는지 확인 ──────────────────
+#     pending = session.get(conv_id)
+#     if pending:
+#         # 후속 답변으로 누락 부분 보완
+#         follow_params = extract_params(question)
+#         pending.update({k: v for k, v in follow_params.items() if v})
+#         missing = _check_missing(pending)
+#         if missing:                          # 여전히 부족 → 다시 질문
+#             session.set(conv_id, pending)
+#             return _build_follow_up(missing)
+#         else:
+#             session.clear(conv_id)           # 모두 채워졌으면 세션 종료
+#             return _handle_task1(question, pending)  # ← 아래 함수
+    
+#     # ────────────────── 2) 최초 질문 처리 ──────────────────
+#     params = extract_params(question)
+#     missing = _check_missing(params)
+#     if missing:
+#         session.set(conv_id, params)         # 세션에 저장
+#         return _build_follow_up(missing)
+
+#     return _handle_task1(question, params)
+
+#     if missing:
+#         return _build_follow_up(missing)
+    
+#     task = params.get("task")
+#     if task in ("단순조회","상승종목수","하락종목수","거래종목수","시장순위"):
+#         if (ans := _safe_handle(task1_simple.handle, question)):
+#             return ans
+    
+#     # elif task in ("conditional",):
+#     #     if (ans := _safe_handle(task2_condition.handle, question)):
+#     #         return ans
+#     # elif task in ("signal",):
+#     #     if (ans := _safe_handle(task3_signal.handle, question)):
+#     #         return ans
+    
+#     return _FAIL

@@ -1,0 +1,36 @@
+((venv) ) yonghyeon@DESKTOP-OAFQIA8:~/2025miraeAIfestival$ python3 -m scripts.prefetch_yf --start 2025-05-01 --end 2025-06-01
+
+1 Failed download:
+['0030R0.KS']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-05-01 -> 2025-06-01) (Yahoo error = "Data doesn\'t exist for startDate = 1746025200, endDate = 1748703600")')
+
+1 Failed download:
+['099520.KQ']: YFTzMissingError('possibly delisted; no timezone found')
+
+3 Failed downloads:
+['111870.KQ', '226360.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-05-01 -> 2025-06-01)')
+['0037T0.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-05-01 -> 2025-06-01) (Yahoo error = "Data doesn\'t exist for startDate = 1746025200, endDate = 1748703600")')
+
+1 Failed download:
+['463020.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-05-01 -> 2025-06-01) (Yahoo error = "Data doesn\'t exist for startDate = 1746025200, endDate = 1748703600")')
+
+1 Failed download:
+['462310.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-05-01 -> 2025-06-01) (Yahoo error = "Data doesn\'t exist for startDate = 1746025200, endDate = 1748703600")')
+
+1 Failed download:
+['474650.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-05-01 -> 2025-06-01) (Yahoo error = "Data doesn\'t exist for startDate = 1746025200, endDate = 1748703600")')
+
+2 Failed downloads:
+['234030.KQ', '331740.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-05-01 -> 2025-06-01) (Yahoo error = "Data doesn\'t exist for startDate = 1746025200, endDate = 1748703600")')
+
+1 Failed download:
+['174880.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-05-01 -> 2025-06-01)')
+
+2 Failed downloads:
+['455180.KQ', '340450.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-05-01 -> 2025-06-01) (Yahoo error = "Data doesn\'t exist for startDate = 1746025200, endDate = 1748703600")')
+
+1 Failed download:
+['475430.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-05-01 -> 2025-06-01) (Yahoo error = "Data doesn\'t exist for startDate = 1746025200, endDate = 1748703600")')
+
+1 Failed download:
+['^KQ100']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-05-01 -> 2025-06-01)')
+[OK] Rate-limit 없이 모든 티커 수집 완료

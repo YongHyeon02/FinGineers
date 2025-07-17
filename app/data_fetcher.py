@@ -19,7 +19,7 @@ import time
 import datetime as dt
 import warnings
 from functools import lru_cache
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 import pandas as pd
 import yfinance as yf
@@ -38,7 +38,7 @@ warnings.filterwarnings("ignore", category=UserWarning)   # empty slice 등
 # ──────────────────────────────────────────────────────────
 #  1. 프리패치 윈도우 판정
 # ──────────────────────────────────────────────────────────
-_PREFETCH_START = dt.date(2025, 6, 1)
+_PREFETCH_START = dt.date(2024, 10, 1)
 _PREFETCH_END   = dt.date(2025, 7, 14)
 
 def _within_prefetch_window(start: str, end: str) -> bool:
@@ -201,3 +201,39 @@ def get_volume_top(
         .sort_values(ascending=False)
         .head(top_n)
     )
+
+# ──────────────────────────────────────────────────────────
+#  6. 다중 종목 OHLCV 시계열
+# ──────────────────────────────────────────────────────────
+
+def get_price_series(
+    tickers: List[str],
+    start: dt.date,
+    end: dt.date,
+    fields: tuple[str, ...] = ("Open", "High", "Low", "Close"),
+) -> Dict[str, pd.DataFrame]:
+    """
+    [캐시 정책]
+      • 2025-06-01 ≤ date ≤ 2025-07-14 → 로컬 parquet 캐시만 사용
+      • 그 외 기간               → yfinance 다운로드 후 캐시에 저장
+
+    반환 형식: { "Close": DataFrame, "High": DataFrame, ... }
+              각 DataFrame은 index=date, columns=ticker
+    """
+    if not tickers:
+        return {}
+
+    # yfinance end 파라미터는 exclusive이므로 +1 day
+    end_plus = (end + dt.timedelta(days=1)).strftime("%Y-%m-%d")
+    df = _download(tuple(tickers), start=start.strftime("%Y-%m-%d"), end=end_plus)
+
+    if df.empty:
+        return {}
+
+    out: Dict[str, pd.DataFrame] = {}
+    for f in fields:
+        try:
+            out[f] = df.xs(f, level=1, axis=1)
+        except KeyError:
+            continue
+    return out
