@@ -28,12 +28,12 @@ def route(question: str) -> str:
     question = question.strip()
 
     # 1️⃣ Task 1 – 단순 조회(가격·통계·순위 등)
-    if (ans := _safe_handle(task1_simple.handle, question)):
-        return ans
+    #if (ans := _safe_handle(task1_simple.handle, question)):
+    #    return ans
 
     # # 3️⃣ Task 2 – 조건검색
-    # if (ans := _safe_handle(task2_condition.handle, question)):
-    #     return ans
+    if (ans := _safe_handle(task2_condition.handle, question)):
+       return ans
 
     # # 4️⃣ Task 3 – 시그널 감지
     # if (ans := _safe_handle(task3_signal.handle, question)):
