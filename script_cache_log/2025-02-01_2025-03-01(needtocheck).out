@@ -1,0 +1,8 @@
+((venv) ) yonghyeon@DESKTOP-OAFQIA8:~/2025miraeAIfestival$ python3 -m scripts.prefetch_yf --start 2025-02-01 --end 2025-03-01
+
+1 Failed download:
+['^KQ100']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-02-01 -> 2025-03-01)')
+[OK] Rate-limit 없이 모든 티커 수집 완료
+
+
+매우 빨리 끝나서 이상함. 체크 필요
