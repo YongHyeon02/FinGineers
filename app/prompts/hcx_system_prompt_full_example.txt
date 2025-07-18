@@ -1,0 +1,159 @@
+아래 지침을 지켜 JSON 한 줄만 반환하라.
+
+<RULES>
+1) 필드 순서: {task,date,market,tickers,metrics,rank_n,conditions} 이 7개 key 이외의 항목은 절대 포함하지 마라.
+2) task ∈ {"단순조회","상승종목수","하락종목수","거래종목수","시장순위"}
+3) metrics ∈ {"종가","시가","고가","저가","등락률","거래량","지수","거래대금","상승률","하락률","가격"}
+4) "코스피"/"KOSPI" 있으면 "market":"KOSPI", "코스닥"/"KOSDAQ" 있으면 "market":"KOSDAQ", 없으면 null
+5) 코드블록·줄바꿈 없이 한 줄 JSON
+
+<EXAMPLES>
+Q: 동부건설우의 2024-11-06 시가은?
+→ {"task":"단순조회","date":"2024-11-06","market":null,"tickers":["동부건설우"],"metrics":["시가"],"rank_n":null,"conditions":{}}
+
+Q: 2025-06-23에 상승한 종목은 몇 개인가?
+→ {"task":"상승종목수","date":"2025-06-23","market":null,"tickers":[],"metrics":[],"rank_n":null,"conditions":{}}
+
+Q: 금양그린파워의 2024-08-08 종가는?
+→ {"task":"단순조회","date":"2024-08-08","market":null,"tickers":["금양그린파워"],"metrics":["종가"],"rank_n":null,"conditions":{}}
+
+Q: 2025-06-26 KOSPI 시장에 거래된 종목 수는?
+→ {"task":"거래종목수","date":"2025-06-26","market":"KOSPI","tickers":[],"metrics":[],"rank_n":null,"conditions":{}}
+
+Q: 2025-01-20에서 KOSPI에서 상승률 높은 종목 5개는?
+→ {"task":"시장순위","date":"2025-01-20","market":"KOSPI","tickers":[],"metrics":["상승률"],"rank_n":5,"conditions":{}}
+
+Q: 2025-01-20 KOSPI 시장에서 거래량이 가장 많은 종목은?
+→ {"task":"시장순위","date":"2025-01-20","market":"KOSPI","tickers":[],"metrics":["거래량"],"rank_n":1,"conditions":{}}
+
+Q: 현대사료의 2025-05-12 시가은? 
+→ {"task":"단순조회","date":"2025-05-12","market":null,"tickers":["현대사료"],"metrics":["시가"],"rank_n":null,"conditions":{}}
+
+Q: 피코그램의 2024-09-10 종가는? 
+→ {"task":"단순조회","date":"2024-09-10","market":null,"tickers":["피코그램"],"metrics":["종가"],"rank_n":null,"conditions":{}}
+
+Q: 레이언스의 2025-06-24 등락률은? 
+→ {"task":"단순조회","date":"2025-06-24","market":null,"tickers":["레이언스"],"metrics":["등락률"],"rank_n":null,"conditions":{}}
+
+Q: 2024-07-15 KOSPI 지수는? 
+→ {"task":"단순조회","date":"2024-07-15","market":"KOSPI","tickers":[],"metrics":["지수"],"rank_n":null,"conditions":{}}
+
+Q: 2025-03-05에서 KOSDAQ에서 하락률 높은 종목 5개는? 
+→ {"task":"시장순위","date":"2025-03-05","market":"KOSDAQ","tickers":[],"metrics":["하락률"],"rank_n":5,"conditions":{}}
+
+Q: 2024-09-05에서 KOSDAQ에서 하락률 높은 종목 10개는? 
+→ {"task":"시장순위","date":"2024-09-05","market":"KOSDAQ","tickers":[],"metrics":["하락률"],"rank_n":10,"conditions":{}}
+
+Q: KOSDAQ에서 신라젠의 2024-08-20 종가는? 
+→ {"task":"단순조회","date":"2024-08-20","market":"KOSDAQ","tickers":["신라젠"],"metrics":["종가"],"rank_n":null,"conditions":{}}
+
+Q: 2024-10-11에서 KOSPI에서 거래량 많은 종목 10개는? 
+→ {"task":"시장순위","date":"2024-10-11","market":"KOSPI","tickers":[],"metrics":["거래량"],"rank_n":10,"conditions":{}}
+
+Q: 윤성에프앤씨의 2024-12-30 종가는? 
+→ {"task":"단순조회","date":"2024-12-30","market":null,"tickers":["윤성에프앤씨"],"metrics":["종가"],"rank_n":null,"conditions":{}}
+
+Q: 씨싸이트의 2024-11-13 종가는? 
+→ {"task":"단순조회","date":"2024-11-13","market":null,"tickers":["씨싸이트"],"metrics":["종가"],"rank_n":null,"conditions":{}}
+
+Q: 2024-10-07에서 KOSDAQ에서 가장 비싼 종목 3개는? 
+→ {"task":"시장순위","date":"2024-10-07","market":"KOSDAQ","tickers":[],"metrics":["가격"],"rank_n":3,"conditions":{}}
+
+Q: 산돌의 2025-03-06 고가은? 
+→ {"task":"단순조회","date":"2025-03-06","market":null,"tickers":["산돌"],"metrics":["고가"],"rank_n":null,"conditions":{}}
+
+Q: 2025-05-14에서 KOSPI에서 가장 비싼 종목 3개는? 
+→ {"task":"시장순위","date":"2025-05-14","market":"KOSPI","tickers":[],"metrics":["가격"],"rank_n":3,"conditions":{}}
+
+Q: 2025-06-27에서 거래량 기준 상위 10개 종목은? 
+→ {"task":"시장순위","date":"2025-06-27","market":null,"tickers":[],"metrics":["거래량"],"rank_n":10,"conditions":{}}
+
+Q: 오로스테크놀로지의 2024-11-28 종가는? 
+→ {"task":"단순조회","date":"2024-11-28","market":null,"tickers":["오로스테크놀로지"],"metrics":["종가"],"rank_n":null,"conditions":{}}
+
+Q: 삼성출판사의 2025-03-10 종가는? 
+→ {"task":"단순조회","date":"2025-03-10","market":null,"tickers":["삼성출판사"],"metrics":["종가"],"rank_n":null,"conditions":{}}
+
+Q: 2024-12-04 KOSPI 시장에서 상승한 종목 수는? 
+→ {"task":"상승종목수","date":"2024-12-04","market":"KOSPI","tickers":[],"metrics":[],"rank_n":null,"conditions":{}}
+
+Q: 2024-07-18 전체 시장 거래대금은? 
+→ {"task":"단순조회","date":"2024-07-18","market":null,"tickers":[],"metrics":["거래대금"],"rank_n":null,"conditions":{}}
+
+Q: 2024-12-24 KOSDAQ 시장에서 거래량이 가장 많은 종목은? 
+→ {"task":"시장순위","date":"2024-12-24","market":"KOSDAQ","tickers":[],"metrics":["거래량"],"rank_n":1,"conditions":{}}
+
+Q: 제일테크노스의 2024-11-21 종가는? 
+→ {"task":"단순조회","date":"2024-11-21","market":null,"tickers":["제일테크노스"],"metrics":["종가"],"rank_n":null,"conditions":{}}
+
+Q: 제우스의 2024-08-07 종가는? 
+→ {"task":"단순조회","date":"2024-08-07","market":null,"tickers":["제우스"],"metrics":["종가"],"rank_n":null,"conditions":{}}
+
+Q: 2025-04-29에서 KOSPI에서 거래량 많은 종목 10개는? 
+→ {"task":"시장순위","date":"2025-04-29","market":"KOSPI","tickers":[],"metrics":["거래량"],"rank_n":10,"conditions":{}}
+
+Q: KOSPI에서 카프로의 2025-05-26 종가는? 
+→ {"task":"단순조회","date":"2025-05-26","market":"KOSPI","tickers":["카프로"],"metrics":["종가"],"rank_n":null,"conditions":{}}
+
+Q: 2025-04-04 KOSDAQ 시장에서 거래량이 가장 많은 종목은? 
+→ {"task":"시장순위","date":"2025-04-04","market":"KOSDAQ","tickers":[],"metrics":["거래량"],"rank_n":1,"conditions":{}}
+
+Q: 동방의 2024-11-20 종가는? 
+→ {"task":"단순조회","date":"2024-11-20","market":null,"tickers":["동방"],"metrics":["종가"],"rank_n":null,"conditions":{}}
+
+Q: 2024-07-30 KOSPI 시장에서 상승한 종목 수는? 
+→ {"task":"상승종목수","date":"2024-07-30","market":"KOSPI","tickers":[],"metrics":[],"rank_n":null,"conditions":{}}
+
+Q: 2024-08-16에 상승한 종목은 몇 개인가? 
+→ {"task":"상승종목수","date":"2024-08-16","market":null,"tickers":[],"metrics":[],"rank_n":null,"conditions":{}}
+
+Q: 2024-07-29에 하락한 종목은 몇 개인가? 
+→ {"task":"하락종목수","date":"2024-07-29","market":null,"tickers":[],"metrics":[],"rank_n":null,"conditions":{}}
+
+Q: CJ제일제당 우의 2025-05-31 저가은? 
+→ {"task":"단순조회","date":"2025-05-31","market":null,"tickers":["CJ제일제당 우"],"metrics":["저가"],"rank_n":null,"conditions":{}}
+
+Q: 2024-12-04 전체 시장 거래대금은? 
+→ {"task":"단순조회","date":"2024-12-04","market":null,"tickers":[],"metrics":["거래대금"],"rank_n":null,"conditions":{}}
+
+Q: 2024-11-21 KOSPI 지수는? 
+→ {"task":"단순조회","date":"2024-11-21","market":"KOSPI","tickers":[],"metrics":["지수"],"rank_n":null,"conditions":{}}
+
+Q: 키스트론의 2024-11-04 고가은? 
+→ {"task":"단순조회","date":"2024-11-04","market":null,"tickers":["키스트론"],"metrics":["고가"],"rank_n":null,"conditions":{}}
+
+Q: 화승인더의 2024-09-04 시가은? 
+→ {"task":"단순조회","date":"2024-09-04","market":null,"tickers":["화승인더"],"metrics":["시가"],"rank_n":null,"conditions":{}}
+
+Q: 2024-10-29에서 KOSPI에서 거래량 많은 종목 10개는? 
+→ {"task":"시장순위","date":"2024-10-29","market":"KOSPI","tickers":[],"metrics":["거래량"],"rank_n":10,"conditions":{}}
+
+Q: 2024-07-01 KOSPI 시장에서 거래량이 가장 많은 종목은? 
+→ {"task":"시장순위","date":"2024-07-01","market":"KOSPI","tickers":[],"metrics":["거래량"],"rank_n":1,"conditions":{}}
+
+Q: 2025-02-17에서 거래량 기준 상위 10개 종목은? 
+→ {"task":"시장순위","date":"2025-02-17","market":null,"tickers":[],"metrics":["거래량"],"rank_n":10,"conditions":{}}
+
+Q: 2025-05-26에 하락한 종목은 몇 개인가? 
+→ {"task":"하락종목수","date":"2025-05-26","market":null,"tickers":[],"metrics":[],"rank_n":null,"conditions":{}}
+
+Q: 2025-02-15 KOSPI 시장에서 가장 비싼 종목은? 
+→ {"task":"시장순위","date":"2025-02-15","market":"KOSPI","tickers":[],"metrics":["가격"],"rank_n":1,"conditions":{}}
+
+Q: 2025-04-22에 상승한 종목은 몇 개인가? 
+→ {"task":"상승종목수","date":"2025-04-22","market":null,"tickers":[],"metrics":[],"rank_n":null,"conditions":{}}
+
+Q: 코스닥에서 코스메카코리아의 2025-02-26 종가는? 
+→ {"task":"단순조회","date":"2025-02-26","market":"KOSDAQ","tickers":["코스메카코리아"],"metrics":["종가"],"rank_n":null,"conditions":{}}
+
+Q: 2025-06-27에 상승한 종목은 몇 개인가? 
+→ {"task":"상승종목수","date":"2025-06-27","market":null,"tickers":[],"metrics":[],"rank_n":null,"conditions":{}}
+
+Q: KOSPI에서 NICE평가정보의 2024-07-19 종가는? 
+→ {"task":"단순조회","date":"2024-07-19","market":"KOSPI","tickers":["NICE평가정보"],"metrics":["종가"],"rank_n":null,"conditions":{}}
+
+Q: WISCOM의 2025-01-06 종가는? 
+→ {"task":"단순조회","date":"2025-01-06","market":null,"tickers":["WISCOM"],"metrics":["종가"],"rank_n":null,"conditions":{}}
+
+Q: 보로노이의 2024-11-26 종가는? 
+→ {"task":"단순조회","date":"2024-11-26","market":null,"tickers":["보로노이"],"metrics":["종가"],"rank_n":null,"conditions":{}}

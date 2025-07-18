@@ -3,7 +3,7 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.task_handlers import task1_simple as t1
+from app.task_handlers import task1_simple_before_hcx as t1
 
 while(1):
     user_input = input()

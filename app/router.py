@@ -35,6 +35,7 @@ TASK_REGISTRY: Dict[str, dict] = {
 def _safe_handle(fn: HandlerFn, question: str, params: dict) -> Optional[str]:
     try:
         out = fn(question, params)
+        print(out)
         return out if out and out != _FAIL else None
     except Exception as e:
         logger.exception("%s 실행 오류: %s", fn.__name__, e)
@@ -47,10 +48,29 @@ def _missing_fields(task: str, params: dict) -> set[str]:
     """
     req = TASK_REGISTRY.get(task, {}).get("req", set())
     miss = {k for k in req if not params.get(k)}
+    
+    # ── (1) metrics / tickers 빈 리스트 처리 ────────────────────
     if "metrics" in req and not params.get("metrics"):
         miss.add("metrics")
     if "tickers" in req and not params.get("tickers"):
         miss.add("tickers")
+
+    # ── (2) 지수(인덱스) 조회 특례 ─────────────────────────────
+    if task == "단순조회":
+        metrics = params.get("metrics") or []
+        is_index_query = len(metrics) == 1 and metrics[0] == "지수"
+        is_transaction_amount_query  = len(metrics) == 1 and metrics[0] == "거래대금"
+
+        if is_index_query:
+            # ① tickers 는 필요 없음
+            miss.discard("tickers")
+            # ② 대신 market(KOSPI/KOSDAQ) 이 꼭 있어야 함
+            if not params.get("market"):
+                miss.add("market")
+
+        if is_transaction_amount_query:
+            miss.discard("tickers")
+    
     return miss
 
 def _build_follow_up(missing: set[str]) -> str:
@@ -82,6 +102,7 @@ def route(question: str, conv_id: str) -> str:
         # 사용자가 보낸 follow-up 문장으로 슬롯 채우기
         for slot in _missing_fields(pending["task"], pending):
             v = fill_missing(question, slot)
+            print(f"{slot}: {v}")
             if v:
                 filled.update(v)
 
@@ -135,7 +156,6 @@ def route(question: str, conv_id: str) -> str:
     
 #     # # 2️⃣ Task 4 – 모호 질의(최근 급등주, 고점 대비 낙폭 등)
 #     # if parse_ambiguous(question):
-#     #     print("task4 실행됨")
 #     #     return task4_ambiguous.handle(question)
 
 #     # HCX → task 결정

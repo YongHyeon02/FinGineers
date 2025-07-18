@@ -12,15 +12,17 @@ from typing import Dict, Any, List, Optional
 
 import requests
 from app.constants import TASK_REQUIRED
-from app.parsers import _regex_parse      # 순환 참조 방지
+# from app.parsers import _regex_parse      # 순환 참조 방지
 
 logger = logging.getLogger(__name__)
 
 # ──────────────────────────── HCX 설정 ────────────────────────────
 _API_URL = os.getenv(
     "HYPERCLOVA_API_URL",
-    "https://clovastudio.stream.ntruss.com/testapp/v3/chat-completions/HCX-005",
+    # "https://clovastudio.stream.ntruss.com/testapp/v3/chat-completions/HCX-005",
+    "https://clovastudio.stream.ntruss.com/v3/chat-completions/HCX-005",
 )
+
 _TIMEOUT = 40
 _SYS_PROMPT_PATH = Path(__file__).with_name("prompts") / "hcx_system_prompt.txt"
 SYSTEM_PROMPT = _SYS_PROMPT_PATH.read_text(encoding="utf-8").strip()
@@ -92,10 +94,10 @@ def extract_params(question: str) -> Dict[str, Any]:
     규칙 파서(_regex_parse) → HCX JSON → 보정
     """
     
-    prim = _regex_parse(question)
+    # prim = _regex_parse(question)
 
-    if prim and _JSON_EXPECT.issubset(prim):
-        return prim
+    # if prim and _JSON_EXPECT.issubset(prim):
+    #     return prim
 
     # HCX 호출
     hcx_ans = _hcx_chat(
@@ -106,7 +108,7 @@ def extract_params(question: str) -> Dict[str, Any]:
 
     if _JSON_EXPECT_MIN.issubset(data):
         # 규칙 파서 결과를 우선 보존
-        data.update({k: v for k, v in prim.items() if v})
+        # data.update({k: v for k, v in prim.items() if v})
         # 디폴트 보정
         data.setdefault("date",   _DEF_DATE)
         data.setdefault("market", None)
@@ -120,13 +122,12 @@ def extract_params(question: str) -> Dict[str, Any]:
     return {"task": "unknown"}            # 핸들러 쪽에서 _FAIL 처리
 
 # ────────────────────────── ② 슬롯 전용 파서 ─────────────────────────
-_FOLLOW_PROMPTS = {
-    "date":    "YYYY-MM-DD 형태의 date 만 JSON 으로 반환하라.",
-    "metrics": "metrics 배열만 JSON 으로 반환하라 (예: [\"종가\"]).",
-    "tickers": "tickers 배열만 JSON 으로 반환하라.",
-    "rank_n":  "rank_n 정수 하나만 JSON 으로 반환하라.",
-    "market":  "\"KOSPI\" 또는 \"KOSDAQ\" 만 JSON 으로 반환하라.",
-}
+_FOLLOW_PROMPTS_PATH = Path(__file__).with_name("prompts") / "follow_prompt.json"
+try:
+    with open(_FOLLOW_PROMPTS_PATH, encoding="utf-8") as f:
+        _FOLLOW_PROMPTS: dict[str, str] = json.load(f)
+except json.JSONDecodeError as e:
+    raise RuntimeError(f"follow_prompts.json 파싱 오류: {e}")   
 
 def fill_missing(user_reply: str, slot: str) -> dict | None:
     """
