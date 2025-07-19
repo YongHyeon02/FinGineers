@@ -18,7 +18,7 @@ sys.path.append(str(ROOT))
 from app.router import route  # 라우터가 각 Task 핸들러를 호출
 
 # -------------------------------------------------------------
-CSV_PATH  = ROOT / "tests/simple_queries.csv"  # CSV 경로
+CSV_PATH  = ROOT / "tests/test_csv/simple_queries.csv"  # CSV 경로
 ENCODING  = "utf-8"                            # 파일 인코딩
 MISMATCHES = []                                # 실패 목록
 

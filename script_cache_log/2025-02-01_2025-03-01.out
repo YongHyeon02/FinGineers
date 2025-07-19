@@ -1,0 +1,74 @@
+((venv) ) yonghyeon@DESKTOP-OAFQIA8:~/2025miraeAIfestival$ python3 -m scripts.prefetch_yf --start 2025-02-01 --end 2025-03-01
+
+2 Failed downloads:
+['0030R0.KS', '483650.KS']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-02-01 -> 2025-03-02) (Yahoo error = "Data doesn\'t exist for startDate = 1738335600, endDate = 1740841200")')
+
+2 Failed downloads:
+['031210.KS', '480370.KS']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-02-01 -> 2025-03-02) (Yahoo error = "Data doesn\'t exist for startDate = 1738335600, endDate = 1740841200")')
+
+1 Failed download:
+['099520.KQ']: YFTzMissingError('possibly delisted; no timezone found')
+
+3 Failed downloads:
+['226360.KQ', '111870.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-02-01 -> 2025-03-02)')
+['0037T0.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-02-01 -> 2025-03-02) (Yahoo error = "Data doesn\'t exist for startDate = 1738335600, endDate = 1740841200")')
+
+2 Failed downloads:
+['459510.KQ', '463020.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-02-01 -> 2025-03-02) (Yahoo error = "Data doesn\'t exist for startDate = 1738335600, endDate = 1740841200")')
+
+3 Failed downloads:
+['462860.KQ', '462310.KQ', '393970.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-02-01 -> 2025-03-02) (Yahoo error = "Data doesn\'t exist for startDate = 1738335600, endDate = 1740841200")')
+
+2 Failed downloads:
+['474650.KQ', '376900.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-02-01 -> 2025-03-02) (Yahoo error = "Data doesn\'t exist for startDate = 1738335600, endDate = 1740841200")')
+
+1 Failed download:
+['489460.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-02-01 -> 2025-03-02) (Yahoo error = "Data doesn\'t exist for startDate = 1738335600, endDate = 1740841200")')
+
+1 Failed download:
+['496070.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-02-01 -> 2025-03-02) (Yahoo error = "Data doesn\'t exist for startDate = 1738335600, endDate = 1740841200")')
+
+4 Failed downloads:
+['081180.KQ', '331740.KQ', '444530.KQ', '234030.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-02-01 -> 2025-03-02) (Yahoo error = "Data doesn\'t exist for startDate = 1738335600, endDate = 1740841200")')
+
+2 Failed downloads:
+['460870.KQ', '435570.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-02-01 -> 2025-03-02) (Yahoo error = "Data doesn\'t exist for startDate = 1738335600, endDate = 1740841200")')
+
+3 Failed downloads:
+['226590.KQ', '364950.KQ']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+['481070.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-02-01 -> 2025-03-02) (Yahoo error = "Data doesn\'t exist for startDate = 1738335600, endDate = 1740841200")')
+상장 안됨
+
+3 Failed downloads:
+['101970.KQ', '136150.KQ']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+['476040.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-02-01 -> 2025-03-02) (Yahoo error = "Data doesn\'t exist for startDate = 1738335600, endDate = 1740841200")')
+상장안됨
+
+1 Failed download:
+['424870.KQ']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+상장안됨
+
+2 Failed downloads:
+['174880.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-02-01 -> 2025-03-02)')
+['287840.KQ']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+상장안됨
+
+2 Failed downloads:
+['340450.KQ', '455180.KQ']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+상장안됨
+
+1 Failed download:
+['475430.KQ']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+상장안됨
+
+2 Failed downloads:
+['484810.KQ']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+['125020.KQ']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-02-01 -> 2025-03-02) (Yahoo error = "Data doesn\'t exist for startDate = 1738335600, endDate = 1740841200")')
+상장안됨
+
+3 Failed downloads:
+['498390.KQ', '098070.KQ']: YFRateLimitError('Too Many Requests. Rate limited. Try after a while.')
+['^KQ100']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-02-01 -> 2025-03-02)')
+상장안됨
+
+[OK] Rate-limit 없이 모든 티커 수집 완료

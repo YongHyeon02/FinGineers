@@ -14,7 +14,6 @@ from app.task_handlers import (
 logger = logging.getLogger(__name__)
 _FAIL = "질문을 이해하지 못했습니다."
 
-
 # ──────────────────────────────────────────────
 # 1.  task 메타 정의  (추가 시 여기만 수정)
 # ──────────────────────────────────────────────
@@ -35,8 +34,8 @@ TASK_REGISTRY: Dict[str, dict] = {
 def _safe_handle(fn: HandlerFn, question: str, params: dict) -> Optional[str]:
     try:
         out = fn(question, params)
-        print(out)
-        return out if out and out != _FAIL else None
+        # print(out)
+        return out if out else None
     except Exception as e:
         logger.exception("%s 실행 오류: %s", fn.__name__, e)
         return None

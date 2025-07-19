@@ -1,0 +1,135 @@
+handle 실행 오류: '006840.KS'
+Traceback (most recent call last):
+  File "/home/yonghyeon/2025miraeAIfestival/venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 3812, in get_loc
+    return self._engine.get_loc(casted_key)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "pandas/_libs/index.pyx", line 167, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/index.pyx", line 196, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7088, in pandas._libs.hashtable.PyObjectHashTable.get_item
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7096, in pandas._libs.hashtable.PyObjectHashTable.get_item
+KeyError: '006840.KS'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/yonghyeon/2025miraeAIfestival/app/router.py", line 36, in _safe_handle
+    out = fn(question, params)
+          ^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/app/task_handlers/task1_simple.py", line 238, in handle
+    cnt = _traded_count(p["date"], market)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/app/task_handlers/task1_simple.py", line 132, in _traded_count
+    cnt = sum(
+          ^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/app/task_handlers/task1_simple.py", line 135, in <genexpr>
+    if not pd.isna((sub := _slice_single(df, t))["Volume"].iloc[0])
+                           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/app/data_fetcher.py", line 60, in _slice_single
+    return df[ticker]
+           ~~^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/venv/lib/python3.12/site-packages/pandas/core/frame.py", line 4106, in __getitem__
+    return self._getitem_multilevel(key)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/venv/lib/python3.12/site-packages/pandas/core/frame.py", line 4164, in _getitem_multilevel
+    loc = self.columns.get_loc(key)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/venv/lib/python3.12/site-packages/pandas/core/indexes/multi.py", line 3059, in get_loc
+    loc = self._get_level_indexer(key, level=0)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/venv/lib/python3.12/site-packages/pandas/core/indexes/multi.py", line 3410, in _get_level_indexer
+    idx = self._get_loc_single_level_index(level_index, key)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/venv/lib/python3.12/site-packages/pandas/core/indexes/multi.py", line 2999, in _get_loc_single_level_index
+    return level_index.get_loc(key)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 3819, in get_loc
+    raise KeyError(key) from err
+KeyError: '006840.KS'
+handle 실행 오류: '099520.KQ'
+Traceback (most recent call last):
+  File "/home/yonghyeon/2025miraeAIfestival/venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 3812, in get_loc
+    return self._engine.get_loc(casted_key)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "pandas/_libs/index.pyx", line 167, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/index.pyx", line 196, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7088, in pandas._libs.hashtable.PyObjectHashTable.get_item
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7096, in pandas._libs.hashtable.PyObjectHashTable.get_item
+KeyError: '099520.KQ'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/yonghyeon/2025miraeAIfestival/app/router.py", line 36, in _safe_handle
+    out = fn(question, params)
+          ^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/app/task_handlers/task1_simple.py", line 256, in handle
+    names = _answer_top_price(p["date"], market, n)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/app/task_handlers/task1_simple.py", line 187, in _answer_top_price
+    if (sub := _slice_single(df, t)).empty is False
+               ^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/app/data_fetcher.py", line 60, in _slice_single
+    return df[ticker]
+           ~~^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/venv/lib/python3.12/site-packages/pandas/core/frame.py", line 4106, in __getitem__
+    return self._getitem_multilevel(key)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/venv/lib/python3.12/site-packages/pandas/core/frame.py", line 4164, in _getitem_multilevel
+    loc = self.columns.get_loc(key)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/venv/lib/python3.12/site-packages/pandas/core/indexes/multi.py", line 3059, in get_loc
+    loc = self._get_level_indexer(key, level=0)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/venv/lib/python3.12/site-packages/pandas/core/indexes/multi.py", line 3410, in _get_level_indexer
+    idx = self._get_loc_single_level_index(level_index, key)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/venv/lib/python3.12/site-packages/pandas/core/indexes/multi.py", line 2999, in _get_loc_single_level_index
+    return level_index.get_loc(key)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 3819, in get_loc
+    raise KeyError(key) from err
+KeyError: '099520.KQ'
+handle 실행 오류: '0030R0.KS'
+Traceback (most recent call last):
+  File "/home/yonghyeon/2025miraeAIfestival/venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 3812, in get_loc
+    return self._engine.get_loc(casted_key)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "pandas/_libs/index.pyx", line 167, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/index.pyx", line 196, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7088, in pandas._libs.hashtable.PyObjectHashTable.get_item
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7096, in pandas._libs.hashtable.PyObjectHashTable.get_item
+KeyError: '0030R0.KS'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/yonghyeon/2025miraeAIfestival/app/router.py", line 36, in _safe_handle
+    out = fn(question, params)
+          ^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/app/task_handlers/task1_simple.py", line 256, in handle
+    names = _answer_top_price(p["date"], market, n)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/app/task_handlers/task1_simple.py", line 187, in _answer_top_price
+    if (sub := _slice_single(df, t)).empty is False
+               ^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/app/data_fetcher.py", line 60, in _slice_single
+    return df[ticker]
+           ~~^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/venv/lib/python3.12/site-packages/pandas/core/frame.py", line 4106, in __getitem__
+    return self._getitem_multilevel(key)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/venv/lib/python3.12/site-packages/pandas/core/frame.py", line 4164, in _getitem_multilevel
+    loc = self.columns.get_loc(key)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/venv/lib/python3.12/site-packages/pandas/core/indexes/multi.py", line 3059, in get_loc
+    loc = self._get_level_indexer(key, level=0)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/venv/lib/python3.12/site-packages/pandas/core/indexes/multi.py", line 3410, in _get_level_indexer
+    idx = self._get_loc_single_level_index(level_index, key)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/venv/lib/python3.12/site-packages/pandas/core/indexes/multi.py", line 2999, in _get_loc_single_level_index
+    return level_index.get_loc(key)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/yonghyeon/2025miraeAIfestival/venv/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 3819, in get_loc
+    raise KeyError(key) from err
+KeyError: '0030R0.KS'

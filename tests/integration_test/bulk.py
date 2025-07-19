@@ -1,11 +1,11 @@
-# tests/bulk_smoke_test.py
+# tests/bulk.py
 import re
 import pandas as pd
 
 from app.router import route
 from app.session import new_id
 
-CSV_PATH = "tests/simple_queries.csv"  # 필요시 경로 조정
+CSV_PATH = "tests/test_csv/simple_queries.csv"  # 필요시 경로 조정
 
 def is_follow_up(resp: str) -> bool:
     """
@@ -14,10 +14,9 @@ def is_follow_up(resp: str) -> bool:
     if not isinstance(resp, str):
         return False
     resp = resp.strip()
-    if resp.endswith("?"):
+    if resp.startswith("질문을 더 정확히 이해하기 위해") and resp.endswith("알려주세요."):
         return True
-    follow_kw = ("날짜", "market", "시장", "종목", "알려", "어느", "확인")
-    return any(k in resp for k in follow_kw)
+    return False
 
 def main() -> None:
     df = pd.read_csv(CSV_PATH)
@@ -32,7 +31,7 @@ def main() -> None:
 
         if is_follow_up(resp):
             follow += 1
-            print(f"🔄 FOLLOW_UP: {q}\n", flush=True)
+            print(f"🔄 FOLLOW_UP: {q}\nfollow up q: {resp}", flush=True)
         else:
             if resp == exp:
                 passes += 1

@@ -1,4 +1,4 @@
-# tests/manual_smoke_test.py
+# tests/manual.py
 from app.router import route
 from app.session import new_id
 

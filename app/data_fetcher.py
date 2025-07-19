@@ -25,6 +25,10 @@ import pandas as pd
 import yfinance as yf
 from yfinance.base import YFRateLimitError
 
+# 다음날 계산
+def _next_day(date: str) -> str:
+    return (pd.Timestamp(date) + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+
 # ──────────────────────────────────────────────────────────
 #  캐시 유틸 (app/yf_cache.py)
 # ──────────────────────────────────────────────────────────
@@ -38,8 +42,8 @@ warnings.filterwarnings("ignore", category=UserWarning)   # empty slice 등
 # ──────────────────────────────────────────────────────────
 #  1. 프리패치 윈도우 판정
 # ──────────────────────────────────────────────────────────
-_PREFETCH_START = dt.date(2025, 7, 1)
-_PREFETCH_END   = dt.date(2025, 7, 14)
+_PREFETCH_START = dt.date(2024, 1, 1)
+_PREFETCH_END   = dt.date(2025, 7, 1)
 
 def _within_prefetch_window(start: str, end: str) -> bool:
     s = dt.date.fromisoformat(start)
@@ -90,7 +94,7 @@ def _download(
     df = yf.download(
         list(tickers),
         start=start,
-        end=end,
+        end=_next_day(end),
         interval=interval,
         group_by="ticker",
         threads=True,
@@ -135,8 +139,7 @@ def _fetch_one(ticker: str, start: str, end: str, field: str) -> float | None:
 
 def get_price_on_date(ticker: str, date: str, field: str = "Close") -> float:
     target = dt.datetime.strptime(date, "%Y-%m-%d")
-    start = date
-    end   = (target + dt.timedelta(days=1)).strftime("%Y-%m-%d")
+    start = end = date
 
     # (1) _fetch_one 3회 재시도
     for i in range(3):
@@ -153,7 +156,7 @@ def get_price_on_date(ticker: str, date: str, field: str = "Close") -> float:
         for i in range(3):
             try:
                 hist = yf.Ticker(ticker).history(
-                    start=start, end=end, interval="1d", auto_adjust=False
+                    start=start, end=_next_day(end), interval="1d", auto_adjust=False
                 )
                 if not hist.empty and field in hist.columns:
                     return float(hist[field].iloc[0])
@@ -168,11 +171,10 @@ def get_volume_top(
     tickers: List[str], date: str, top_n: int = 10
 ) -> pd.Series:
     """특정 날짜 거래량 상위 N개 (NaN·0 제외)"""
-    target = dt.datetime.strptime(date, "%Y-%m-%d")
     df = _download(
         tuple(tickers),
         start=date,
-        end=(target + dt.timedelta(days=1)).strftime("%Y-%m-%d"),
+        end=date,
         interval="1d",
     )
 
@@ -224,8 +226,9 @@ def get_price_series(
         return {}
 
     # yfinance end 파라미터는 exclusive이므로 +1 day
-    end_plus = (end + dt.timedelta(days=1)).strftime("%Y-%m-%d")
-    df = _download(tuple(tickers), start=start.strftime("%Y-%m-%d"), end=end_plus)
+    start_str = start.strftime("%Y-%m-%d")
+    end_str   = end.strftime("%Y-%m-%d")
+    df = _download(tuple(tickers), start=start_str, end=end_str)
 
     if df.empty:
         return {}

@@ -11,7 +11,7 @@ if __name__ == "__main__":
     args = p.parse_args()
 
     tickers = tuple(KOSPI_TICKERS + KOSDAQ_TICKERS + INDEX_TICKERS)
-    rate_limited = assure(tickers, args.start, args.end)
+    rate_limited = assure(tickers, args.start, args.end, write_cache=True)
 
     # ── 영구 실패 목록 기록 ──────────────────────────
     permanent = getattr(assure, "permanent_fail", [])

@@ -17,7 +17,7 @@ sys.path.append(str(ROOT))
 from app.router import route
 
 # -------------------------------------------------------------
-CSV_PATH  = ROOT / "tests/conditional_queries.csv"
+CSV_PATH  = ROOT / "tests/test_csv/conditional_queries.csv"
 ENCODING  = "utf-8"
 MISMATCHES = []
 
