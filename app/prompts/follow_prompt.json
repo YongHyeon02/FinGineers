@@ -1,5 +1,7 @@
 {
   "date": "{\"date\":\"YYYY-MM-DD\"} 형태의 JSON 객체만 그대로 반환하라.",
+  "date_from": "{\"date_from\":\"YYYY-MM-DD\"} 형태의 JSON 객체만 그대로 반환하라.",
+  "date_to": "{\"date_to\":\"YYYY-MM-DD\"} 형태의 JSON 객체만 그대로 반환하라.",
   "metrics": "{\"metrics\":[\"종가\"]} 형태의 JSON 객체만 그대로 반환하라.",
   "tickers": "{\"tickers\":[\"삼성전자\"]} 형태의 JSON 객체만 그대로 반환하라.",
   "rank_n": "{\"rank_n\":10} 형태의 JSON 객체만 그대로 반환하라.",

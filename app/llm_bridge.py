@@ -83,7 +83,7 @@ def _hcx_chat(messages: List[dict], *, max_tokens: int = 256, temperature: float
         return None
     
 # ────────────────────────── ① 최초 질문 파싱 ─────────────────────────
-_JSON_EXPECT     = {"task","date","market","tickers","metrics","rank_n","conditions"}
+_JSON_EXPECT     = {"task","date","date_from","date_to","market","tickers","metrics","rank_n","conditions"}
 _JSON_EXPECT_MIN = {"task"}
 _DEF_DATE        = (dt.date.today() - dt.timedelta(days=1)).isoformat()
 _DEF_TOPN        = 10
@@ -111,6 +111,8 @@ def extract_params(question: str) -> Dict[str, Any]:
         # data.update({k: v for k, v in prim.items() if v})
         # 디폴트 보정
         data.setdefault("date",   _DEF_DATE)
+        data.setdefault("date_from", _DEF_DATE)
+        data.setdefault("date_to", _DEF_DATE)
         data.setdefault("market", None)
         data.setdefault("tickers", [])
         data.setdefault("metrics", [])

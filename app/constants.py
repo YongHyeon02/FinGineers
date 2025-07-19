@@ -4,4 +4,5 @@ TASK_REQUIRED = {
     "상승종목수":  {"date"},
     "하락종목수":  {"date"},
     "거래종목수":  {"date"},
+    "조건검색":    {"date","conditions"},
 }

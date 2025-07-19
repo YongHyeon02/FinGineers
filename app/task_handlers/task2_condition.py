@@ -1,115 +1,155 @@
-# 조건검색 (전일 n% 이상)
-# app/task_handlers/task2_condition.py
-
-import re
+from __future__ import annotations
+from typing import Dict, List
 import pandas as pd
-from typing import Dict
 
-from app.data_fetcher import _download, _slice_single
-from app.universe import GLOBAL_TICKERS, KOSPI_TICKERS, KOSDAQ_TICKERS, NAME_BY_TICKER
-from app.task_handlers.task1_simple import _prev_bday, _next_day
+from app.data_fetcher import _download
+from app.universe import NAME_BY_TICKER
+from app.utils import _holiday_msg, _prev_bday, _next_day, _universe
 
-def handle(question: str) -> str:
+# ────────────────────────── 1. 내부 헬퍼 ──────────────────────────
+def _need_flags(cond: Dict) -> Dict[str, bool]:
+    today_close   = "price_close" in cond
+    today_volume  = "volume" in cond
+    pct_change    = "pct_change" in cond
+    vol_chg_pct   = "volume_pct" in cond
+    return {
+        "today_close":  today_close,
+        "today_volume": today_volume,
+        "pct_change":   pct_change,
+        "vol_chg_pct":  vol_chg_pct,
+        "prev_close":   pct_change,
+        "prev_volume":  vol_chg_pct,
+    }
+
+def _download_for(date: str, market: str | None, need: Dict) -> pd.DataFrame:
+    tickers = _universe(market)
+    start   = _prev_bday(date) if (need["prev_close"] or need["prev_volume"]) else date
+    end     = _next_day(date)
+    return _download(tuple(tickers), start=start, end=end, interval="1d")
+
+# ────────────────────────── 2. 메인 필터 ──────────────────────────
+def _filter(df: pd.DataFrame, date: str, cond: Dict, need: Dict) -> List[str]:
     try:
-        return _answer_condition_query(question.strip())
-    except Exception as e:
-        return f"[ERROR] {e}"
+        today = df.loc[pd.to_datetime(date)]
+    except KeyError:
+        return []
 
-# ──────────────────────────────
-# 처리 함수: 조건 검색
-# ──────────────────────────────
+    try:
+        prev = df.loc[pd.to_datetime(_prev_bday(date))] if (need["prev_close"] or need["prev_volume"]) else None
+    except KeyError:
+        prev = None
 
-def _answer_condition_query(q: str) -> str:
-    cond = _parse_condition(q)
-    df = _get_market_df(cond["date"], cond.get("market"))
-    df = _attach_change_metrics(df)
-    df = _apply_filters(df, cond)
-    names = [NAME_BY_TICKER.get(t, t) for t in df.index]
-    return ", ".join(names) if names else "조건에 맞는 종목 없음"
+    out: List[str] = []
 
-
-def _parse_condition(q: str) -> Dict:
-    date = re.search(r"(\d{4}-\d{2}-\d{2})", q).group(1)
-    cond = {"date": date}
-
-    # 시장 구분
-    if "KOSPI" in q:
-        cond["market"] = "KOSPI"
-    elif "KOSDAQ" in q:
-        cond["market"] = "KOSDAQ"
-
-    if "등락률이 +" in q:
-        pct = float(re.search(r"등락률이 \+?(\d+)% 이상", q).group(1))
-        cond["pct_change_min"] = pct
-    if "등락률이 -" in q:
-        pct = float(re.search(r"등락률이 -(\d+)% 이하", q).group(1))
-        cond["pct_change_max"] = -pct
-
-    if "거래량이 전날대비" in q:
-        pct = float(re.search(r"거래량이 전날대비 (\d+)% 이상", q).group(1))
-        cond["volume_change_pct_min"] = pct
-    if "거래량이" in q and "만주 이상" in q:
-        vol = int(re.search(r"거래량이 (\d+)만주 이상", q).group(1))
-        cond["volume_min"] = vol * 10_000
-
-    if "종가가" in q:
-        m = re.search(r"종가가 (\d+)만원 이상 (\d+)만원 이하", q)
-        if m:
-            cond["price_min"] = int(m.group(1)) * 10_000
-            cond["price_max"] = int(m.group(2)) * 10_000
-        else:
-            m = re.search(r"종가가 (\d+)만원 이상", q)
-            if m:
-                cond["price_min"] = int(m.group(1)) * 10_000
-
-    return cond
-
-
-def _get_market_df(date: str, market: str | None = None) -> pd.DataFrame:
-    tickers = (
-        KOSPI_TICKERS if market == "KOSPI" else
-        KOSDAQ_TICKERS if market == "KOSDAQ" else
-        GLOBAL_TICKERS
-    )
-    nxt = _next_day(date)
-    return _download(tuple(tickers), start=_prev_bday(date), end=nxt, interval="1d")
-
-
-def _attach_change_metrics(df: pd.DataFrame) -> pd.DataFrame:
-    metrics = {}
-    for t in df.columns.get_level_values(0).unique():
-        try:
-            sub = _slice_single(df, t)
-            if len(sub) < 2 or not {"Close", "Volume"}.issubset(sub.columns):
-                continue
-            prev_c, today_c = sub["Close"].iloc[0], sub["Close"].iloc[1]
-            prev_v, today_v = sub["Volume"].iloc[0], sub["Volume"].iloc[1]
-            if pd.isna(prev_c) or pd.isna(today_c) or prev_c == 0:
-                continue
-            if pd.isna(prev_v) or pd.isna(today_v) or prev_v == 0:
-                continue
-            metrics[t] = {
-                "Close": today_c,
-                "pct_change": (today_c - prev_c) / prev_c * 100,
-                "volume": today_v,
-                "volume_change_pct": (today_v - prev_v) / prev_v * 100
-            }
-        except Exception:
+    for t in df.columns.levels[0]:  # 티커 순회
+        if (t, "Close") not in today or (t, "Volume") not in today:
             continue
-    return pd.DataFrame.from_dict(metrics, orient="index")
 
+        tc = today.get((t, "Close"), pd.NA)
+        tv = today.get((t, "Volume"), pd.NA)
 
-def _apply_filters(df: pd.DataFrame, cond: Dict) -> pd.DataFrame:
-    if "pct_change_min" in cond:
-        df = df[df["pct_change"] >= cond["pct_change_min"]]
-    if "pct_change_max" in cond:
-        df = df[df["pct_change"] <= cond["pct_change_max"]]
-    if "volume_change_pct_min" in cond:
-        df = df[df["volume_change_pct"] >= cond["volume_change_pct_min"]]
-    if "volume_min" in cond:
-        df = df[df["volume"] >= cond["volume_min"]]
-    if "price_min" in cond:
-        df = df[df["Close"] >= cond["price_min"]]
-    if "price_max" in cond:
-        df = df[df["Close"] <= cond["price_max"]]
-    return df
+        if pd.isna(tc) or pd.isna(tv):
+            continue
+
+        # ── 오늘 종가 / 거래량 조건 ──
+        if need["today_close"]:
+            cmin = cond["price_close"].get("min")
+            cmax = cond["price_close"].get("max")
+            if (cmin is not None and tc < cmin) or (cmax is not None and tc > cmax):
+                continue
+
+        if need["today_volume"]:
+            vmin = cond["volume"].get("min")
+            if vmin is not None and tv < vmin:
+                continue
+
+        # ── 전일 데이터 필요 시 ──
+        if not (need["pct_change"] or need["vol_chg_pct"]):
+            out.append(t)
+            continue
+
+        if prev is None or (t, "Close") not in prev or (t, "Volume") not in prev:
+            continue
+
+        pc = prev.get((t, "Close"), pd.NA)
+        pv = prev.get((t, "Volume"), pd.NA)
+
+        if any(pd.isna(x) or x == 0 for x in (pc, pv, tc, tv)):
+            continue
+
+        # 등락률
+        if need["pct_change"]:
+            delta = (tc - pc) / pc * 100
+            dmin  = cond["pct_change"].get("min")
+            dmax  = cond["pct_change"].get("max")
+            if (dmin is not None and delta < dmin) or (dmax is not None and delta > dmax):
+                continue
+
+        # 거래량 증감률
+        if need["vol_chg_pct"]:
+            v_pct = (tv - pv) / pv * 100
+            vpmin = cond["volume_pct"].get("min")
+            vpmax = cond["volume_pct"].get("max")
+            if (vpmin is not None and v_pct < vpmin) or (vpmax is not None and v_pct > vpmax):
+                continue
+
+        out.append(t)
+
+    return out
+
+# ────────────────────────── 3. public entry ──────────────────────────
+def handle(_: str, p: dict) -> str:
+    date, market, cond = p["date"], p.get("market"), p.get("conditions", {})
+    if msg := _holiday_msg(date):
+        return msg
+
+    need = _need_flags(cond)
+    df   = _download_for(date, market, need)
+    if df.empty:
+        return f"{date}의 데이터가 없습니다."
+
+    tickers = _filter(df, date, cond, need)
+    if not tickers:
+        return "조건에 맞는 종목이 없습니다"
+
+    names = [NAME_BY_TICKER.get(t, t) for t in tickers]
+
+    # 조건 설명 텍스트 구성
+    cond_parts = []
+    if "pct_change" in cond:
+        min_ = cond["pct_change"].get("min")
+        max_ = cond["pct_change"].get("max")
+        if min_ is not None and max_ is not None:
+            cond_parts.append(f"등락률이 {min_}% 이상 {max_}% 이하")
+        elif min_ is not None:
+            cond_parts.append(f"등락률이 {min_}% 이상")
+        elif max_ is not None:
+            cond_parts.append(f"등락률이 {max_}% 이하")
+    if "volume_pct" in cond:
+        min_ = cond["volume_pct"].get("min")
+        max_ = cond["volume_pct"].get("max")
+        if min_ is not None and max_ is not None:
+            cond_parts.append(f"거래량이 전날대비 {min_}% 이상 {max_}% 이하")
+        elif min_ is not None:
+            cond_parts.append(f"거래량이 전날대비 {min_}% 이상")
+        elif max_ is not None:
+            cond_parts.append(f"거래량이 전날대비 {max_}% 이하")
+    if "volume" in cond:
+        min_ = cond["volume"].get("min")
+        if min_ is not None:
+            cond_parts.append(f"거래량이 {min_:,}주 이상")
+    if "price_close" in cond:
+        min_ = cond["price_close"].get("min")
+        max_ = cond["price_close"].get("max")
+        if min_ is not None and max_ is not None:
+            cond_parts.append(f"종가가 {min_:,}원 이상 {max_:,}원 이하")
+        elif min_ is not None:
+            cond_parts.append(f"종가가 {min_:,}원 이상")
+        elif max_ is not None:
+            cond_parts.append(f"종가가 {max_:,}원 이하")
+
+    cond_text = " 및 ".join(cond_parts) if cond_parts else "조건에 맞는"
+    market_txt = f"{market}에서 " if market else ""
+    intro = f"{date}에 {market_txt}{cond_text}인 종목은 다음과 같습니다."
+    
+    return f"{intro}\n{', '.join(names)}"

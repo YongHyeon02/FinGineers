@@ -1,92 +1,79 @@
-# 시그널 감지 (이동평균 돌파 등)# 시그널 감지 (이동평균 돌파 등)
-# app/task_handlers/task3_signal.py
 from __future__ import annotations
-
-import re
 from typing import Literal
 
-from app.signal_utils import *
+from app.signal_utils import (
+    detect_rsi,
+    detect_volume_spike,
+    detect_ma_break,
+    detect_bollinger_touch,
+    count_crosses,
+    list_crossed_stocks,
+)
 
 SignalType = Literal[
-    "RSI_OVERBOUGHT", "RSI_OVERSOLD",
-    "VOLUME_SPIKE",
-    "MA5_BREAK", "MA20_BREAK", "MA60_BREAK",
-    "BOLLINGER_UPPER", "BOLLINGER_LOWER",
-    "GOLDEN_CROSS_COUNT", "DEAD_CROSS_COUNT",
-    "GOLDEN_CROSS_LIST", "DEAD_CROSS_LIST",
+    "RSI", "거래량급증", "이동평균돌파", "볼린저터치"
 ]
 
-def handle(question: str) -> str:
-    parsed = parse_signal_question(question)
-    if parsed is None:
-        return "[ERROR] 파싱 실패: 시그널 질문이 아닙니다."
+def handle(_: str, p: dict) -> str:
     try:
-        return handle_signal_query(**parsed)
+        task = p["task"]
+        cond = p.get("conditions", {})
+
+        # ───────────────────────────────
+        # Task 1: 시그널 감지 (종목 필터링)
+        # ───────────────────────────────
+        if task == "시그널감지":
+            signal_type = _to_signal_type(p.get("metrics", []))
+            if signal_type == "RSI":
+                return detect_rsi(p["date"], cond)
+            elif signal_type == "거래량급증":
+                return detect_volume_spike(p["date"], cond)
+            elif signal_type == "이동평균돌파":
+                return detect_ma_break(p["date"], cond)
+            elif signal_type == "볼린저터치":
+                return detect_bollinger_touch(p["date"], cond)
+            else:
+                return f"[ERROR] 알 수 없는 시그널 유형입니다: {signal_type}"
+            
+        # ───────────────────────────────
+        # Task 2: 시그널 횟수 (단일 종목)
+        # ───────────────────────────────
+        elif task == "시그널횟수":
+            name = p["tickers"][0] if p["tickers"] else None
+            if not name:
+                return "[ERROR] 종목명이 필요합니다."
+            from_date, to_date = p["date_from"], p["date_to"]
+            g, d = count_crosses(from_date, to_date, name)
+            side = cond.get("side")
+            if side == "golden":
+                return f"{name}에서 {from_date}부터 {to_date}까지 골든크로스가 발생한 횟수는 {g}번입니다."
+            elif side == "dead":
+                return f"{name}에서 {from_date}부터 {to_date}까지 데드크로스가 발생한 횟수는 {d}번입니다."
+            elif side == "both":
+                return f"{name}에서 {from_date}부터 {to_date}까지 데드크로스는 {d}번, 골든크로스는 {g}번 발생했습니다."
+            else:
+                return f"{name}에서 {from_date}부터 {to_date}까지 골든크로스 {g}번, 데드크로스 {d}번 발생했습니다."
+
+        # ───────────────────────────────
+        # Task 3: 시그널 종목 리스트
+        # ───────────────────────────────
+        elif task == "시그널종목":
+            from_date, to_date = p["date_from"], p["date_to"]
+            side = cond.get("side")
+            tickers = list_crossed_stocks(from_date, to_date, cond)
+            if not tickers:
+                return "조건에 맞는 종목 없음"
+            cross_txt = "골든크로스" if side == "golden" else "데드크로스"
+            return f"{from_date}부터 {to_date}까지 {cross_txt}가 발생한 종목은 다음과 같습니다.\n{', '.join(tickers)}"
+
+        else:
+            return f"[ERROR] 알 수 없는 task: {task}"
+
     except Exception as e:
         return f"[ERROR] 처리 중 오류: {e}"
 
-def handle_signal_query(
-    signal_type: SignalType,
-    date: str | None = None,
-    threshold: float | None = None,
-    from_date: str | None = None,
-    to_date: str | None = None,
-    target_name: str | None = None,
-    window: int | None = None,
-) -> str:
-    if signal_type.startswith("RSI"):
-        return detect_rsi(signal_type, date, threshold)
-    elif signal_type == "VOLUME_SPIKE":
-        return detect_volume_spike(date, threshold, window)
-    elif "MA" in signal_type:
-        return detect_ma_break(signal_type, date, threshold)
-    elif "BOLLINGER" in signal_type:
-        return detect_bollinger_touch(signal_type, date)
-    elif signal_type.endswith("CROSS_COUNT"):
-        return count_crosses(signal_type, from_date, to_date, target_name)
-    elif signal_type.endswith("CROSS_LIST"):
-        return list_crossed_stocks(signal_type, from_date, to_date)
-    elif signal_type == "CROSS_COUNT_BOTH":
-        g = count_crosses("GOLDEN_CROSS_COUNT", from_date, to_date, target_name)
-        d = count_crosses("DEAD_CROSS_COUNT", from_date, to_date, target_name)
-        return f"데드크로스 {d}, 골든크로스 {g}"
-    else:
-        return "[ERROR] 알 수 없는 시그널 타입입니다."
 
-def parse_signal_question(q: str) -> dict | None:
-    q = q.strip()
-
-    # RSI 과매수 / 과매도 (우선적으로 검사)
-    if m := re.search(r"(.+?)에 RSI가 (\d+)[^\d\n]+과매수 종목", q):
-        return dict(signal_type="RSI_OVERBOUGHT", date=m[1], threshold=float(m[2]))
-    if m := re.search(r"(.+?)에 RSI가 (\d+)[^\d\n]+과매도 종목", q):
-        return dict(signal_type="RSI_OVERSOLD", date=m[1], threshold=float(m[2]))
-
-    # 거래량 급증
-    if m := re.search(r"(.+?)에 거래량.+?(\d+)일 평균 대비 (\d+)% 이상", q):
-        return dict(signal_type="VOLUME_SPIKE", date=m[1], window=int(m[2]), threshold=float(m[3])        )
-
-    # MA 돌파
-    if m := re.search(r"(.+?)에 종가가 (\d+)일 이동평균보다 ([\d.]+)% 이상", q):
-        return dict(signal_type=f"MA{m[2]}_BREAK", date=m[1], threshold=float(m[3]))
-
-    # 볼린저 밴드 상단/하단
-    if m := re.search(r"(.+?)에 볼린저 밴드 (상단|하단)", q):
-        signal_type = "BOLLINGER_UPPER" if m[2] == "상단" else "BOLLINGER_LOWER"
-        return dict(signal_type=signal_type, date=m[1])
-
-    # 골든/데드크로스 횟수
-    if m := re.search(r"(.+?) ?(\d{4}-\d{2}-\d{2})부터 (\d{4}-\d{2}-\d{2})까지 (.+?)가 몇번 발생", q):
-        both = "골든" in m[4] and "데드" in m[4]
-        if both:
-            return dict(signal_type="CROSS_COUNT_BOTH", target_name=m[1], from_date=m[2], to_date=m[3])
-        cross_type = "GOLDEN_CROSS_COUNT" if "골든" in m[4] else "DEAD_CROSS_COUNT"
-        return dict(signal_type=cross_type, target_name=m[1], from_date=m[2], to_date=m[3])
-
-    # 골든/데드크로스 종목 리스트
-    if m := re.search(r"(\d{4}-\d{2}-\d{2})부터 (\d{4}-\d{2}-\d{2})까지 (.+?)가 발생한 종목", q):
-        cross_type = "GOLDEN_CROSS_LIST" if "골든" in m[3] else "DEAD_CROSS_LIST"
-        return dict(signal_type=cross_type, from_date=m[1], to_date=m[2])
-
-    return None
-
+def _to_signal_type(metrics: list[str]) -> str:
+    if not metrics:
+        raise ValueError("metrics가 비어 있습니다.")
+    return metrics[0]

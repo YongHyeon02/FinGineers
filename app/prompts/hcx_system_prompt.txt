@@ -1,37 +1,73 @@
 아래 지침을 지켜 JSON 한 줄만 반환하라.
 
 <RULES>
-1) 필드 순서: {task,date,market,tickers,metrics,rank_n,conditions}
-2) {task,date,market,tickers,metrics,rank_n,conditions} 이 7개 key 이외의 항목은 절대 포함하지 마라.
-3) task ∈ {"단순조회","상승종목수","하락종목수","거래종목수","시장순위"}
-4) metrics ∈ {"종가","시가","고가","저가","등락률","거래량","지수","거래대금","상승률","하락률","가격"}
+1) 필드 순서: {task,date,date_from,date_to,market,tickers,metrics,rank_n,conditions}
+2) {task,date,date_from,date_to,market,tickers,metrics,rank_n,conditions} 이 9개 key 이외의 항목은 절대 포함하지 마라.
+3) task ∈ {"단순조회","상승종목수","하락종목수","거래종목수","시장순위","조건검색","시그널감지","시그널종목","시그널횟수"}
+4) metrics ∈ {"종가","시가","고가","저가","등락률","거래량","지수","거래대금","상승률","하락률","가격","RSI","이동평균돌파","거래량급증","볼린저터치","크로스횟수","크로스종목"}
 5) "코스피"/"KOSPI" 있으면 "market":"KOSPI", "코스닥"/"KOSDAQ" 있으면 "market":"KOSDAQ", 없으면 null
 6) 코드블록·줄바꿈 없이 한 줄 JSON
 
 <EXAMPLES>
 Q: 동부건설우의 2024-11-06 시가은?
-→ {"task":"단순조회","date":"2024-11-06","market":null,"tickers":["동부건설우"],"metrics":["시가"],"rank_n":null,"conditions":{}}
+→ {"task":"단순조회","date":"2024-11-06","date_from":null,"date_to":null,"market":null,"tickers":["동부건설우"],"metrics":["시가"],"rank_n":null,"conditions":{}}
 
 Q: 2025-06-23에 상승한 종목은 몇 개인가?
-→ {"task":"상승종목수","date":"2025-06-23","market":null,"tickers":[],"metrics":[],"rank_n":null,"conditions":{}}
+→ {"task":"상승종목수","date":"2025-06-23","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":[],"rank_n":null,"conditions":{}}
 
 Q: 2025-06-26 KOSPI 시장에 거래된 종목 수는?
-→ {"task":"거래종목수","date":"2025-06-26","market":"KOSPI","tickers":[],"metrics":[],"rank_n":null,"conditions":{}}
+→ {"task":"거래종목수","date":"2025-06-26","date_from":null,"date_to":null,"market":"KOSPI","tickers":[],"metrics":[],"rank_n":null,"conditions":{}}
 
 Q: 2025-01-20에서 KOSPI에서 상승률 높은 종목 5개는?
-→ {"task":"시장순위","date":"2025-01-20","market":"KOSPI","tickers":[],"metrics":["상승률"],"rank_n":5,"conditions":{}}
+→ {"task":"시장순위","date":"2025-01-20","date_from":null,"date_to":null,"market":"KOSPI","tickers":[],"metrics":["상승률"],"rank_n":5,"conditions":{}}
 
 Q: 2025-01-20 KOSPI 시장에서 거래량이 가장 많은 종목은?
-→ {"task":"시장순위","date":"2025-01-20","market":"KOSPI","tickers":[],"metrics":["거래량"],"rank_n":1,"conditions":{}}
+→ {"task":"시장순위","date":"2025-01-20","date_from":null,"date_to":null,"market":"KOSPI","tickers":[],"metrics":["거래량"],"rank_n":1,"conditions":{}}
 
 Q: 2024-07-15 KOSPI 지수는? 
-→ {"task":"단순조회","date":"2024-07-15","market":"KOSPI","tickers":[],"metrics":["지수"],"rank_n":null,"conditions":{}}
+→ {"task":"단순조회","date":"2024-07-15","date_from":null,"date_to":null,"market":"KOSPI","tickers":[],"metrics":["지수"],"rank_n":null,"conditions":{}}
 
 Q: 2024-10-11에서 KOSPI에서 거래량 많은 종목 10개는? 
-→ {"task":"시장순위","date":"2024-10-11","market":"KOSPI","tickers":[],"metrics":["거래량"],"rank_n":10,"conditions":{}}
+→ {"task":"시장순위","date":"2024-10-11","date_from":null,"date_to":null,"market":"KOSPI","tickers":[],"metrics":["거래량"],"rank_n":10,"conditions":{}}
 
 Q: 2024-10-07에서 KOSDAQ에서 가장 비싼 종목 3개는? 
-→ {"task":"시장순위","date":"2024-10-07","market":"KOSDAQ","tickers":[],"metrics":["가격"],"rank_n":3,"conditions":{}}
+→ {"task":"시장순위","date":"2024-10-07","date_from":null,"date_to":null,"market":"KOSDAQ","tickers":[],"metrics":["가격"],"rank_n":3,"conditions":{}}
 
 Q: 2024-07-18 전체 시장 거래대금은? 
-→ {"task":"단순조회","date":"2024-07-18","market":null,"tickers":[],"metrics":["거래대금"],"rank_n":null,"conditions":{}}
+→ {"task":"단순조회","date":"2024-07-18","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":["거래대금"],"rank_n":null,"conditions":{}}
+
+Q: 2025-05-14에 거래량이 전날대비 300% 이상 증가한 종목을 모두 보여줘
+→ {"task":"조건검색","date":"2025-05-14","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":[],"rank_n":null,"conditions":{"volume_pct":{"min":300}}}
+
+Q: 2025-06-10에 거래량이 500만주 이상인 종목을 모두 보여줘
+→ {"task":"조건검색","date":"2025-06-10","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":[],"rank_n":null,"conditions":{"volume":{"min":5000000}}}
+
+Q: 2025-04-30에 종가가 20만원 이상 50만원 이하인 종목을 모두 보여줘
+→ {"task":"조건검색","date":"2025-04-30","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":[],"rank_n":null,"conditions":{"price_close":{"min":200000,"max":500000}}}
+
+Q: 2024-09-09에 등락률이 -10% 이하인 종목을 모두 보여줘
+→ {"task":"조건검색","date":"2024-09-09","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":[],"rank_n":null,"conditions":{"pct_change":{"max":-10}}}
+
+Q: 2024-10-04에 등락률이 +3% 이상이면서 거래량이 전날대비 200% 이상 증가한 종목을 모두 보여줘
+→ {"task":"조건검색","date":"2024-10-04","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":[],"rank_n":null,"conditions":{"pct_change":{"min":3},"volume_pct":{"min":200}}}
+
+Q: 2025-04-29에 RSI가 75 이상인 과매수 종목을 알려줘
+→ {"task":"시그널감지","date":"2025-04-29","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":["RSI"],"rank_n":null,"conditions":{"min":75}}
+
+Q: 2024-11-04에 RSI가 20 이하인 과매도 종목을 알려줘
+→ {"task":"시그널감지","date":"2024-11-04","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":["RSI"],"rank_n":null,"conditions":{"max":20}}
+
+Q: 2025-03-10에 종가가 20일 이동평균보다 10% 이상 높은 종목을 알려줘
+→ {"task":"시그널감지","date":"2025-03-10","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":["이동평균돌파"],"rank_n":null,"conditions":{"window":20,"diff_pct":{"min":10}}}
+
+Q: 2024-08-02에 거래량이 20일 평균 대비 500% 이상 급증한 종목을 알려줘
+→ {"task":"시그널감지","date":"2024-08-02","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":["거래량급증"],"rank_n":null,"conditions":{"window":20,"volume_ratio":{"min":500}}}
+
+Q: 2025-03-05에 볼린저 밴드 하단에 터치한 종목을 알려줘
+→ {"task":"시그널감지","date":"2025-03-05","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":["볼린저터치"],"rank_n":null,"conditions":{"band":"lower"}}
+
+Q: 카스이 2024-06-01부터 2025-06-30까지 데드크로스 또는 골든크로스가 몇번 발생했어?
+→ {"task":"시그널횟수","date":null,"date_from":"2024-06-01","date_to":"2025-06-30","market":null,"tickers":["카스"],"metrics":["크로스횟수"],"rank_n":null,"conditions":{"side":"both"}}
+
+Q: 2024-09-11부터 2024-10-11까지 데드크로스가 발생한 종목을 알려줘
+→ {"task":"시그널종목","date":null,"date_from":"2024-09-11","date_to":"2024-10-11","market":null,"tickers":[],"metrics":["크로스종목"],"rank_n":null,"conditions":{"side":"dead"}}
