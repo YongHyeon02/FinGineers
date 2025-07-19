@@ -129,12 +129,20 @@ def _traded_count(date: str, market: str) -> str:
     df = _download(tuple(tickers), start=date, end=date, interval="1d")
     if df.empty:
         return None
-    cnt = sum(
-        1
-        for t in tickers
-        if not pd.isna((sub := _slice_single(df, t))["Volume"].iloc[0])
-        and sub["Volume"].iloc[0] > 0
-    )
+    cnt = 0
+    for t in tickers:
+        try:
+            sub = _slice_single(df, t)          # df에 없으면 KeyError
+        except KeyError:
+            continue                            # 데이터 미존재 → 패스
+
+        if "Volume" not in sub.columns:
+            continue
+        v = sub["Volume"].iloc[0]
+        if pd.isna(v) or v == 0:
+            continue
+        cnt += 1
+
     return cnt
 
 # ─────────────────────────── 3. 시장 순위 ───────────────────────────
@@ -181,13 +189,21 @@ def _answer_top_mover(date: str, market: str|None, direction: str, n: int) -> st
 def _answer_top_price(date: str, market: str|None, n: int) -> str:
     tickers = _universe(market)
     df = _download(tuple(tickers), start=date, end=date, interval="1d")
-    closes = {
-        t: sub["Close"].iloc[0]
-        for t in tickers
-        if (sub := _slice_single(df, t)).empty is False
-        and not _is_zero_volume(sub)
-        and not pd.isna(sub["Close"].iloc[0])
-    }
+    if df.empty:
+        return f"{date} 데이터 없음"
+    closes: dict[str, float] = {}
+    for t in tickers:
+        try:
+            sub = _slice_single(df, t)        # 티커 없으면 KeyError
+        except KeyError:
+            continue                           # 데이터 미존재 → 패스
+
+        if sub.empty or _is_zero_volume(sub):
+            continue
+        close_val = sub["Close"].iloc[0] if "Close" in sub.columns else None
+        if pd.isna(close_val):
+            continue
+        closes[t] = float(close_val)
     if not closes:
         return f"{date} 데이터 없음"
     top = sorted(closes.items(), key=lambda x: x[1], reverse=True)[:n]
