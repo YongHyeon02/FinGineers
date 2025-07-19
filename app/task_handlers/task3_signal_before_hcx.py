@@ -1,4 +1,4 @@
-# 시그널 감지 (이동평균 돌파 등)# 시그널 감지 (이동평균 돌파 등)
+# 시그널 감지 (이동평균 돌파 등)
 # app/task_handlers/task3_signal.py
 from __future__ import annotations
 
