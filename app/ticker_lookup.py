@@ -170,24 +170,3 @@ def to_ticker(identifier: str, *, with_name: bool = False) -> str | TickerInfo:
 
     # ----- ⑥ 자신 없으면 사용자 재질문을 위해 예외 발생 -----
     raise AmbiguousTickerError(identifier, official_names)
-
-
-
-# def _semantic_fallback(query: str) -> str | None:
-#     """Sentence-BERT + Faiss 로 가장 비슷한 회사명 → 티커"""
-#     if SentenceTransformer is None:
-#         return None
-
-#     index, names = _init_embed_index()
-#     if index is None:
-#         return None
-
-#     model = SentenceTransformer("jhgan/ko-sbert-sts")
-#     q_vec = model.encode([query], normalize_embeddings=True)
-#     D, I = index.search(np.asarray(q_vec, dtype="float32"), _TOP_K)
-#     best_sim, best_idx = float(D[0][0]), int(I[0][0])
-#     print(f"best_sim: {best_sim}, {NAME_BY_TICKER.get(_STATIC_MAP[names[best_idx]],None)}")
-#     if best_sim >= _SIM_THRESHOLD:
-#         best_name = names[best_idx]
-#         return _STATIC_MAP[best_name]
-#     return None
