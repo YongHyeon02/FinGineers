@@ -12,6 +12,7 @@ from typing import Dict, Any, List, Optional
 
 import requests
 from app.constants import TASK_REQUIRED
+from config import HCX_CONF_THRESHOLD
 # from app.parsers import _regex_parse      # 순환 참조 방지
 
 logger = logging.getLogger(__name__)
@@ -159,7 +160,50 @@ def _check_missing(params: Dict[str, Any]) -> set[str]:
         missing.add("tickers")
     return missing
 
+# ──────────────────── 티커 디스앰비규에이션 ─────────────────────
+_DISAMBIG_SYS = """
+당신은 한국 주식 종목명을 해석하는 AI입니다.
+주어진 ‘사용자 별칭’을 가장 잘 설명하는 **하나의** ‘후보’ 종목명을 골라야 합니다.
+반환 형식(JSON only):
+{"best": "<후보 중 하나 그대로>", "confidence": 0~1}
+"""
 
+def disambiguate_ticker_hcx(alias: str, candidates: list[str]) -> tuple[str, float]:
+    """
+    별칭(alias)과 후보 종목명 리스트를 HyperCLOVA-X에 넘겨
+    가장 적합한 종목명과 confidence(0~1)를 받아온다.
+    실패 시 (첫 후보, 0.0) 반환
+    """
+    cand_line = ", ".join(candidates)
+    usr_prompt = (
+        f"사용자 별칭: '{alias}'\n"
+        f"후보: {cand_line}\n"
+        f"가장 잘 맞는 하나를 골라 JSON 형식으로 답변하세요."
+    )
+    ans = _hcx_chat(
+        [
+            {"role": "system", "content": _DISAMBIG_SYS},
+            {"role": "user",   "content": usr_prompt},
+        ],
+        max_tokens=128, temperature=0.0
+    ) or ""
+    # print(ans)      
+    data = _safe_json(ans) or {}
+    best = data.get("best")
+    try:
+        conf = float(data.get("confidence", 0))
+    except (TypeError, ValueError):
+        conf = 0.0
+
+    # 유효성 체크: best 가 후보 안에 없으면 신뢰도 0 처리
+    if best not in candidates:
+        best, conf = candidates[0], 0.0
+    return best, conf
+
+# ─────────────────── confidence 외부 접근용 ────────────────────
+def is_confident(conf: float) -> bool:
+    """HCX confidence 가 임계치 이상인지 여부"""
+    return conf >= HCX_CONF_THRESHOLD
 
 
 

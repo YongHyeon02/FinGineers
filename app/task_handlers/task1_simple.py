@@ -11,7 +11,7 @@ from typing import List, Dict, Tuple
 import pandas as pd
 import yfinance as yf
 
-from app.ticker_lookup import to_ticker
+from app.ticker_lookup import to_ticker, TickerInfo
 from app.data_fetcher import get_price_on_date, get_volume_top, _download, _slice_single
 from app.universe import (
     KOSPI_TICKERS, KOSDAQ_TICKERS, GLOBAL_TICKERS,
@@ -28,12 +28,13 @@ TICK2NAME: Dict[str, str] = {v: k for k, v in {**KOSPI_MAP, **KOSDAQ_MAP}.items(
 
 # ─────────────────────────── 1. 가격/등락률 ───────────────────────────
 def _answer_price(params: dict) -> str:
-    name   = params["tickers"][0]
+    raw_name   = params["tickers"][0]
     date   = params["date"]
     field_ko = params["metrics"][0]          # 종가·시가·고가·저가·등락률 중 하나
     if (msg := _holiday_msg(date)):
         return msg
-    ticker = to_ticker(name)
+    info: TickerInfo = to_ticker(raw_name, with_name = True)
+    ticker, off_name = info.ticker, info.name
 
     # 가격 데이터가 없는 주식(거래정지) → 0 처리
     if field_ko == "등락률":
@@ -41,12 +42,12 @@ def _answer_price(params: dict) -> str:
             p_today = get_price_on_date(ticker, date, "Close")
             _, p_prev = _find_prev_close(ticker, date)
             if not p_prev or not p_today:
-                return f"{date}에 {name}의 등락률 데이터를 찾을 수 없습니다"
+                return f"{date}에 {off_name}의 등락률 데이터를 찾을 수 없습니다"
             pct = (p_today - p_prev) / p_prev * 100
             value = f"{pct:+.2f}%"
-            return f"{date}에 {name}의 등락률은 {value} 입니다."
+            return f"{date}에 {off_name}의 등락률은 {value} 입니다."
         except Exception:
-            return f"{date}에 {name}의 등락률 데이터를 찾을 수 없습니다"
+            return f"{date}에 {off_name}의 등락률 데이터를 찾을 수 없습니다"
 
     field = FIELD_MAP[field_ko]
     try:
@@ -55,11 +56,11 @@ def _answer_price(params: dict) -> str:
     except Exception:
         price, vol = None, None
     if price in (None, 0):
-        return f"{date}에 {name}의 {field_ko} 데이터를 찾을 수 없습니다"
+        return f"{date}에 {off_name}의 {field_ko} 데이터를 찾을 수 없습니다"
     if vol in (None, 0) or price in (None, 0):
-        return f"{date}에 {name}은(는) 거래되지 않았습니다."
+        return f"{date}에 {off_name}은(는) 거래되지 않았습니다."
     value = f"{price:,.0f}원"
-    return f"{date}에 {name}의 {field_ko}은(는) {value} 입니다."
+    return f"{date}에 {off_name}의 {field_ko}은(는) {value} 입니다."
 
 def _answer_index(date: str, market: str, ticker: str) -> str:
     msg = _holiday_msg(date)

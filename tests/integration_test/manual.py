@@ -22,9 +22,32 @@ def run():
     final_ans = route(user_reply, cid2)
     print("A2:", final_ans)
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
+#     while True:
+#         cid = new_id()
+#         q = input("질문을 입력하세요: ").strip()
+#         print(route(q, cid), end="\n\n")
+#     # run()
+
+def main():
+    cid = new_id()                              # 한 세션 유지
     while True:
-        cid = new_id()
-        q = input("질문을 입력하세요: ").strip()
-        print(route(q, cid), end="\n\n")
-    # run()
+        q = input("질문 ▶ ").strip()
+        if not q:
+            print("테스트 종료.")
+            break
+
+        ans = route(q, cid)
+        print("Bot:", ans)
+
+        # “정확히 알려주세요” 류 follow-up 요구가 나오면 추가 입력 루프
+        while "정확히" in ans and "알려주세요" in ans:
+            follow = input("추가 입력 ▶ ").strip()
+            if not follow:
+                print("테스트 종료.")
+                return
+            ans = route(follow, cid)
+            print("Bot:", ans)
+
+if __name__ == "__main__":
+    main()

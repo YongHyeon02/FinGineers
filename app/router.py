@@ -10,9 +10,12 @@ from app.task_handlers import (
     task3_signal,
     task4_ambiguous,
 )
+from config import AmbiguousTickerError
 
 logger = logging.getLogger(__name__)
 _FAIL = "질문을 이해하지 못했습니다."
+
+
 
 # ──────────────────────────────────────────────
 # 1.  task 메타 정의  (추가 시 여기만 수정)
@@ -38,6 +41,8 @@ def _safe_handle(fn: HandlerFn, question: str, params: dict) -> Optional[str]:
         out = fn(question, params)
         # print(out)
         return out if out else None
+    except AmbiguousTickerError:
+        raise
     except Exception as e:
         logger.exception("%s 실행 오류: %s", fn.__name__, e)
         return None
@@ -92,50 +97,68 @@ def route(question: str, conv_id: str) -> str:
     """
     conv_id : 세션 ID (웹소켓 UUID, 슬랙 thread_ts 등)
     """
-    question = question.strip()
-    if not question:
-        return _FAIL
+    try:
+        question = question.strip()
+        if not question:
+            return _FAIL
 
-    # ── 1) 미완성 params 가 세션에 저장돼 있나?
-    pending = session.get(conv_id)
-    if pending:
-        filled: dict[str, Any] = {}
-        # 사용자가 보낸 follow-up 문장으로 슬롯 채우기
-        for slot in _missing_fields(pending["task"], pending):
-            v = fill_missing(question, slot)
-            print(f"{slot}: {v}")
-            if v:
-                filled.update(v)
+        # ── 1) 미완성 params 가 세션에 저장돼 있나?
+        pending = session.get(conv_id)
+        if pending:
+            follow = extract_params(question)
+            for k, v in follow.items():
+                if v:
+                    pending[k] = v
 
-        pending.update(filled)
-        still_missing = _missing_fields(pending["task"], pending)
+            filled: dict[str, Any] = {}
+            # 사용자가 보낸 follow-up 문장으로 슬롯 채우기
+            for slot in _missing_fields(pending["task"], pending):
+                v = fill_missing(question, slot)
+                # print(f"{slot}: {v}")
+                if v:
+                    filled.update(v)
+                    
+            pending.update(filled)
+            print(f"updated: {pending}")
+            still_missing = _missing_fields(pending["task"], pending)
 
-        if still_missing:                               # 여전히 비어 있음
+            if still_missing:                               # 여전히 비어 있음
+                session.set(conv_id, pending)
+                return _build_follow_up(still_missing)
+
+            # 모든 슬롯 충족 → 실행
+            session.clear(conv_id)
+            hinfo = TASK_REGISTRY[pending["task"]]
+            return _safe_handle(hinfo["fn"], question, pending) or _FAIL
+
+        # ── 2) 최초 질문 파싱
+        params = extract_params(question)
+        print(params)
+        task   = params.get("task")
+
+        # # 모호(unknown) → 급등주 등 Task4 로
+        # if task not in TASK_REGISTRY:
+        #     return task4_ambiguous.handle(question)
+
+        missing = _missing_fields(task, params)
+        if missing:                             # 정보 더 필요
+            session.set(conv_id, params)
+            return _build_follow_up(missing)
+
+        # ── 3) 즉시 실행
+        hinfo = TASK_REGISTRY[task]
+        return _safe_handle(hinfo["fn"], question, params) or _FAIL
+    except AmbiguousTickerError as e:
+        if 'params' in locals() and params:           # 첫 질문의 params
+            pending = params.copy()
+            pending['tickers'] = []                  # ← 후속 답변 채울 자리
             session.set(conv_id, pending)
-            return _build_follow_up(still_missing)
 
-        # 모든 슬롯 충족 → 실행
-        session.clear(conv_id)
-        hinfo = TASK_REGISTRY[pending["task"]]
-        return _safe_handle(hinfo["fn"], question, pending) or _FAIL
-
-    # ── 2) 최초 질문 파싱
-    params = extract_params(question)
-    print(params)
-    task   = params.get("task")
-
-    # # 모호(unknown) → 급등주 등 Task4 로
-    # if task not in TASK_REGISTRY:
-    #     return task4_ambiguous.handle(question)
-
-    missing = _missing_fields(task, params)
-    if missing:                             # 정보 더 필요
-        session.set(conv_id, params)
-        return _build_follow_up(missing)
-
-    # ── 3) 즉시 실행
-    hinfo = TASK_REGISTRY[task]
-    return _safe_handle(hinfo["fn"], question, params) or _FAIL
+        sugg = " · ".join(e.candidates)
+        return (
+            "질문을 더 정확히 이해하기 위해 조회할 종목명을 정확히 알려주세요.\n"
+            f"예시: {sugg}"
+        )
 
 
 # def route(question: str, conv_id: str) -> str:

@@ -5,7 +5,7 @@ import pandas as pd
 from functools import lru_cache
 from typing import Dict, List
 
-from config import KOSPI_CSV, KOSDAQ_CSV
+from config import KOSPI_CSV, KOSDAQ_CSV, ALIAS_CSV
 
 @lru_cache(maxsize=1)
 def _load_csv(path) -> Dict[str, str]:
@@ -28,6 +28,17 @@ def _load_csv(path) -> Dict[str, str]:
 
     return mapping
 
+@lru_cache(maxsize=1)
+def _load_alias_csv(path=ALIAS_CSV) -> Dict[str, str]:
+    """alias_tickers.csv → {별칭: '티커.확장자'}"""
+    if not path.exists():
+        return {}
+    df = pd.read_csv(path, encoding="utf-8-sig")
+    return {
+        str(a).strip(): str(t).strip().upper()
+        for a, t in zip(df["alias"], df["ticker"])
+        if a and t
+    }
 
 # ----------- 공개 API -----------
 KOSPI_MAP:  Dict[str, str] = _load_csv(KOSPI_CSV)

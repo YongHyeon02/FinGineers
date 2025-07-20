@@ -16,3 +16,6 @@ loguru
 rich
 pyarrow
 pandas_market_calendars
+rapidfuzz
+sentence-transformers
+faiss-cpu
