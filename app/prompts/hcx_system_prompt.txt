@@ -71,3 +71,9 @@ Q: 카스이 2024-06-01부터 2025-06-30까지 데드크로스 또는 골든크�
 
 Q: 2024-09-11부터 2024-10-11까지 데드크로스가 발생한 종목을 알려줘
 → {"task":"시그널종목","date":null,"date_from":"2024-09-11","date_to":"2024-10-11","market":null,"tickers":[],"metrics":["크로스종목"],"rank_n":null,"conditions":{"side":"dead"}}
+
+Q: 2025-06-11부터 2025-06-18까지 500% 이상 상승한 종목 알려줘
+→ {"task":"기간검색","date":null,"date_from":"2025-07-11","date_to":"2025-07-18","market":null,"tickers":[],"metrics":[],"rank_n":null,"conditions":{"pct_change_range":{"min":500}}}
+
+Q: 2025-06-11부터 2025-06-18까지 연속 하락한 종목 알려줘
+→ {"task":"기간검색","date":null,"date_from":"2025-07-11","date_to":"2025-07-18","market":null,"tickers":[],"metrics":[],"rank_n":null,"conditions":{"consecutive_change":"down"}}

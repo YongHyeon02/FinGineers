@@ -30,6 +30,7 @@ TASK_REGISTRY: Dict[str, dict] = {
     "거래종목수":  {"fn": task1_simple.handle,     "req": {"date"}},
     "시장순위":    {"fn": task1_simple.handle,     "req": {"date","metrics","rank_n"}},
     "조건검색":    {"fn": task2_condition.handle,  "req": {"date","conditions"}},    
+    "기간검색":    {"fn": task2_condition.handle,  "req": {"date_from","date_to","conditions"}},    
     "시그널감지":  {"fn": task3_signal.handle,     "req": {"date","metrics","conditions"}},
     "시그널종목":  {"fn": task3_signal.handle,     "req": {"date_from","date_to","conditions"}},
     "시그널횟수":  {"fn": task3_signal.handle,     "req": {"date_from","date_to","tickers","conditions"}},

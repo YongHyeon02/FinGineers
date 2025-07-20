@@ -5,4 +5,8 @@ TASK_REQUIRED = {
     "하락종목수":  {"date"},
     "거래종목수":  {"date"},
     "조건검색":    {"date","conditions"},
+    "기간검색":    {"date_from","date_to","conditions"},
+    "시그널감지":  {"date","metrics","conditions"},
+    "시그널종목":  {"date_from","date_to","conditions"},
+    "시그널횟수":  {"date_from","date_to","tickers","conditions"},
 }

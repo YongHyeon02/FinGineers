@@ -327,4 +327,3 @@ def is_confident(conf: float) -> bool:
 #     if "tickers" in req and not data.get("tickers"):
 #         missing.add("tickers")
 #     return missing
-
