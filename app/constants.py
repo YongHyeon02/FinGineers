@@ -10,3 +10,4 @@ TASK_REQUIRED = {
     "시그널종목":  {"date_from","date_to","conditions"},
     "시그널횟수":  {"date_from","date_to","tickers","conditions"},
 }
+THREE_PATTERN_METRICS = {"적삼병", "흑삼병"}

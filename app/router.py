@@ -35,6 +35,7 @@ TASK_REGISTRY: Dict[str, dict] = {
     "시그널종목":  {"fn": task3_signal.handle,     "req": {"date_from","date_to","conditions"}},
     "시그널횟수":  {"fn": task3_signal.handle,     "req": {"date_from","date_to","tickers","conditions"}},
 }
+THREE_PATTERN_METRICS = {"적삼병", "흑삼병"}
 
 # ──────────────────────────────────────────────
 def _safe_handle(fn: HandlerFn, question: str, params: dict) -> Optional[str]:
@@ -77,7 +78,16 @@ def _missing_fields(task: str, params: dict) -> set[str]:
 
         if is_transaction_amount_query:
             miss.discard("tickers")
-    
+
+    # ── (3) 삼병(적·흑) 패턴 특례 ───────────────────────────
+    mts = (params.get("metrics") or [])[:1]
+    if mts and mts[0] in THREE_PATTERN_METRICS:
+        miss.discard("conditions")
+        if task == "시그널감지":
+            miss.discard("date")
+            for k in ("date_from", "date_to"):
+                if not params.get(k):
+                    miss.add(k)
     return miss
 
 def _build_follow_up(missing: set[str]) -> str:

@@ -1,10 +1,13 @@
 from __future__ import annotations
 import pandas as pd
 import datetime as dt
+import numpy as np
+from typing import Any, Iterable, List, Tuple
 
 from app.universe import KOSPI_TICKERS, KOSDAQ_TICKERS, NAME_BY_TICKER
-from app.data_fetcher import _download
+from app.data_fetcher import _download, _next_day
 from app.ticker_lookup import to_ticker
+from app.utils import _prev_bday
 
 ALL = KOSPI_TICKERS + KOSDAQ_TICKERS
 
@@ -204,3 +207,104 @@ def list_crossed_stocks(from_date: str, to_date: str, cond: dict) -> list[str]:
                     result.append(NAME_BY_TICKER.get(ticker, ticker))
                     break
     return sorted(result)
+
+
+
+# ───────────────────────────────────────────────────────────
+# ⑤ 캔들스틱 패턴: 3-연속 양봉/음봉 (‘적삼병’ / ‘흑삼병’)
+# ───────────────────────────────────────────────────────────
+def _slice_three(sr: pd.Series, loc: int) -> Tuple[pd.Series, pd.Series] | None:
+    """loc(정수 인덱스) 포함해 직전 2일·당일 총 3거래일을 반환"""
+    if loc < 2:
+        return None
+    return sr.iloc[loc - 2 : loc + 1]
+
+def _white(open_s, close_s) -> bool:
+    # 3연속 양봉 + 종가 지속 상승
+    return bool((close_s > open_s).all() and np.diff(close_s).min() > 0)
+
+def _black(open_s, close_s) -> bool:
+    # 3연속 음봉 + 종가 지속 하락
+    return bool((close_s < open_s).all() and np.diff(close_s).max() < 0)
+
+def _scan_three_pattern(
+    pattern: str,
+    start: str,
+    end: str,
+    tickers: Iterable[str] | None = None,
+) -> List[Tuple[str, str]]:
+    """
+    - pattern: "적삼병" | "흑삼병"
+    - 반환: [(ticker, 'YYYY-MM-DD'), ...]
+    """
+    if tickers is None or not tickers:
+        tickers = tuple(ALL)
+
+    df = _download(tuple(tickers),start=start, end=_next_day(end), interval="1d")
+    if df.empty or not isinstance(df.columns, pd.MultiIndex):
+        return []
+    occurs: list[Tuple[str, str]] = []
+    for t in df.columns.levels[0]:
+        try:
+            op = df[t, "Open"].dropna()
+            cl = df[t, "Adj Close"].dropna()
+        except KeyError:
+            continue
+
+        # ── 연속 3거래일 슬라이딩 ──────────────────────────
+        for idx in range(2, len(op)):
+            sub_o = _slice_three(op, idx)
+            sub_c = _slice_three(cl, idx)
+            if sub_o is None or sub_c is None:
+                continue            # 자료 부족
+
+            if (pattern == "적삼병" and _white(sub_o, sub_c)) or \
+               (pattern == "흑삼병" and _black(sub_o, sub_c)):
+                occurs.append((t, str(op.index[idx].date())))
+    return occurs
+
+def three_pattern_dates(
+    ticker: str,
+    pattern: str,
+    date_from: str,
+    date_to: str,
+) -> str:
+    """단일 종목 구간 내 발생일 리스트업"""
+    occ = _scan_three_pattern(pattern, date_from, date_to, [ticker])
+    if not occ:
+        return (f"{NAME_BY_TICKER.get(ticker, ticker)}은(는) {date_from}~{date_to} 기간에 {pattern} 패턴이 없습니다.")
+    dates = ", ".join(d for _, d in occ)
+    return (f"{NAME_BY_TICKER.get(ticker, ticker)} ({date_from}~{date_to}) {pattern} 발생일은 {dates}입니다.")
+
+def three_pattern_counts(
+    ticker: str,
+    pattern: str,
+    date_from: str,
+    date_to: str,
+) -> str:
+    occ = _scan_three_pattern(pattern, date_from, date_to, [ticker])
+    counts = len(occ)
+    return (f"{NAME_BY_TICKER.get(ticker, ticker)} ({date_from}~{date_to}) {pattern} 발생 횟수는 {counts}입니다.")
+
+def three_pattern_tickers(
+    pattern: str,
+    date_from: str,
+    date_to: str,
+    market: str,
+) -> str:
+    """구간 내 패턴이 최소 1회라도 나온 종목 리스트업"""
+    pool = (
+        KOSPI_TICKERS  if market == "KOSPI"  else
+        KOSDAQ_TICKERS if market == "KOSDAQ" else
+        ALL
+    )
+    market_txt = market if market else "전체 시장"
+    hit_codes: list[str] = []
+    for tk in pool:
+        # 티커별로 소규모 DF만 다운로드 → 메모리·누락 문제 최소화
+        if _scan_three_pattern(pattern, date_from, date_to, [tk]):
+            hit_codes.append(tk)
+    if not hit_codes:
+        return f"{date_from}~{date_to} 기간에 {market_txt}에서 {pattern} 패턴이 관측된 종목이 없습니다."
+    names = [NAME_BY_TICKER.get(tk, tk) for tk in sorted(hit_codes)]
+    return (f"{date_from}~{date_to} 기간에 {market_txt}에서 {pattern} 발생 종목은 다음과 같습니다.\n" + ", ".join(names))
