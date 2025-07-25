@@ -42,7 +42,7 @@ warnings.filterwarnings("ignore", category=UserWarning)   # empty slice 등
 # ──────────────────────────────────────────────────────────
 #  1. 프리패치 윈도우 판정
 # ──────────────────────────────────────────────────────────
-_PREFETCH_START = dt.date(2024, 10, 1)
+_PREFETCH_START = dt.date(2024, 1, 1)
 _PREFETCH_END   = dt.date(2025, 7, 1)
 
 def _within_prefetch_window(start: str, end: str) -> bool:

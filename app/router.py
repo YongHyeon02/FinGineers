@@ -5,6 +5,7 @@ from typing import Callable, Optional, Dict, Any
 from app import session                  # ↩︎ 간단한 in-mem 세션 캐시 (앞서 제안)
 from app.llm_bridge import extract_params, fill_missing
 from app.task_handlers import (
+    task_search,
     task1_simple,
     task2_condition,
     task3_signal,
@@ -29,6 +30,7 @@ TASK_REGISTRY: Dict[str, dict] = {
     "하락종목수":  {"fn": task1_simple.handle,     "req": {"date"}},
     "거래종목수":  {"fn": task1_simple.handle,     "req": {"date"}},
     "시장순위":    {"fn": task1_simple.handle,     "req": {"date","metrics","rank_n"}},
+<<<<<<< HEAD
     "조건검색":    {"fn": task2_condition.handle,  "req": {"date","conditions"}},    
     "기간검색":    {"fn": task2_condition.handle,  "req": {"date_from","date_to","conditions"}},    
     "시그널감지":  {"fn": task3_signal.handle,     "req": {"date","metrics","conditions"}},
@@ -36,6 +38,12 @@ TASK_REGISTRY: Dict[str, dict] = {
     "시그널횟수":  {"fn": task3_signal.handle,     "req": {"date_from","date_to","tickers","conditions"}},
 }
 THREE_PATTERN_METRICS = {"적삼병", "흑삼병"}
+=======
+    "종목검색":    {"fn": task_search.handle,      "req": set()},
+    "횟수검색":    {"fn": task_search.handle,      "req": {"date_from", "date_to", "tickers", "conditions"}},
+    "날짜검색":    {"fn": task_search.handle,      "req": {"date_from", "date_to", "tickers", "conditions"}},
+    }
+>>>>>>> 27bb2d19 (검색 3종류, 거래량 0 제외)
 
 # ──────────────────────────────────────────────
 def _safe_handle(fn: HandlerFn, question: str, params: dict) -> Optional[str]:

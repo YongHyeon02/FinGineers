@@ -40,6 +40,8 @@ def detect_rsi(date: str, cond: dict) -> str:
 
     result = []
     for ticker in sorted(set(k[0] for k in df.columns)):
+        if (ticker, "Volume") not in df.columns or df[ticker, "Volume"].get(date, 0) == 0:
+            continue
         close = df[ticker, "Adj Close"].dropna()
         rsi = compute_rsi(close, date, window)
         if rsi is None:
@@ -50,7 +52,7 @@ def detect_rsi(date: str, cond: dict) -> str:
             continue
         result.append((ticker, rsi))
 
-    result.sort(key=lambda x: -x[1])
+    result.sort(key=lambda x: -abs(x[1]))
     names = [f"{NAME_BY_TICKER.get(t, t)}(RSI:{v:.1f})" for t, v in result]
 
     if not names:
@@ -90,7 +92,7 @@ def detect_volume_spike(date: str, cond: dict) -> str:
         if ratio >= threshold:
             result.append((ticker, ratio))
 
-    result.sort(key=lambda x: -x[1])
+    result.sort(key=lambda x: -abs(x[1]))
     names = [f"{NAME_BY_TICKER.get(t, t)}({r:.0f}%)" for t, r in result]
 
     if not names:
@@ -107,7 +109,7 @@ def detect_ma_break(date: str, cond: dict) -> str:
     df = _download(tuple(ALL), start=start, end=end)
 
     result = []
-    for ticker in df.columns.levels[0]:
+    for ticker in df.columns.levels[0]:        
         close = df[ticker, "Adj Close"].dropna()
         if date not in close or len(close) < window:
             continue
@@ -117,7 +119,7 @@ def detect_ma_break(date: str, cond: dict) -> str:
         if pct_diff >= threshold:
             result.append((ticker, pct_diff))
 
-    result.sort(key=lambda x: -x[1])
+    result.sort(key=lambda x: -abs(x[1]))
     names = [f"{NAME_BY_TICKER.get(t, t)}({r:.2f}%)" for t, r in result]
 
     if not names:

@@ -1,0 +1,597 @@
+[
+  {
+    "input_data": {
+      "message": "2025-06-27에서 KOSPI에서 거래량 많은 종목 10개는?"
+    },
+    "expected_output": "KCTC, 동방, 삼성전자, 콜마홀딩스, 한국전력, 카카오, 카카오페이, 두산에너빌리티, 제주은행, 형지엘리트",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "KOSDAQ에서 대성미생물의 2024-10-28 종가는?"
+    },
+    "expected_output": "10,008원",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "도화엔지니어링의 2025-06-25 고가은?"
+    },
+    "expected_output": "6,890원",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "KOSPI에서 대덕1우의 2024-08-01 종가는?"
+    },
+    "expected_output": "6,457원",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "하이트진로2우B의 2024-09-24 저가은?"
+    },
+    "expected_output": "해당 날짜 저가 데이터 없음",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "KG이니시스의 2024-07-17 종가는?"
+    },
+    "expected_output": "10,408원",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "케이씨에스의 2024-07-02 시가은?"
+    },
+    "expected_output": "6,536원",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2024-09-12 KOSDAQ 시장에서 가장 비싼 종목은?"
+    },
+    "expected_output": "알테오젠 (316,000원)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-04-30에서 KOSDAQ에서 하락률 높은 종목 5개는?"
+    },
+    "expected_output": "엑스큐어, 대호특수강우, 삼륭물산, 아이스크림에듀, 브릿지바이오테라퓨틱스",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-05-08에서 KOSDAQ에서 거래량 많은 종목 10개는?"
+    },
+    "expected_output": "나우로보틱스, 메타바이오메드, 나무기술, 인성정보, 웹케시, 큐라티스, 고영, 포바이포, 오리엔트정공, 브릿지바이오테라퓨틱스",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-02-11에서 KOSDAQ에서 가장 비싼 종목 3개는?"
+    },
+    "expected_output": "레인보우로보틱스, 알테오젠, 파마리서치",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-04-24에서 KOSPI에서 가장 비싼 종목 3개는?"
+    },
+    "expected_output": "삼성바이오로직스, 삼양식품, 한화에어로스페이스",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-04-17 KOSDAQ 지수는?"
+    },
+    "expected_output": "711.75",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-03-03에서 KOSDAQ에서 가장 비싼 종목 3개는?"
+    },
+    "expected_output": "해당 날짜 KOSDAQ price 순위 데이터 없음",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "KOSPI에서 롯데지주의 2024-07-05 종가는?"
+    },
+    "expected_output": "23,837원",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2024-11-18 KOSPI 지수는?"
+    },
+    "expected_output": "2469.07",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "에스비비테크의 2025-06-05 종가는?"
+    },
+    "expected_output": "21,600원",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-06-11 KOSDAQ 시장에서 거래량이 가장 많은 종목은?"
+    },
+    "expected_output": "이스트아시아홀딩스 (271,628,600주)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "세화피앤씨의 2025-04-16 종가는?"
+    },
+    "expected_output": "814원",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "CS홀딩스의 2025-02-04 종가는?"
+    },
+    "expected_output": "해당 날짜 종가 데이터 없음",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2024-10-09에서 KOSPI에서 가장 비싼 종목 3개는?"
+    },
+    "expected_output": "한글날 (KOSPI price 순위 데이터 없음)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-06-26 KOSPI 지수는?"
+    },
+    "expected_output": "3079.56",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "퓨릿의 2024-10-04 등락률은?"
+    },
+    "expected_output": "-0.71%",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-06-11 KOSDAQ 지수는?"
+    },
+    "expected_output": "786.29",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2024-07-11에서 KOSPI에서 거래량 많은 종목 10개는?"
+    },
+    "expected_output": "삼성전자, 대원전선, SG글로벌, 대한전선, 태양금속, 시프트업, 두산에너빌리티, 한온시스템, 에이프로젠, 한전산업",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-03-27 KOSDAQ 지수는?"
+    },
+    "expected_output": "707.49",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "버넥트의 2024-11-27 종가는?"
+    },
+    "expected_output": "2,995원",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2024-08-14에서 KOSDAQ에서 가장 비싼 종목 3개는?"
+    },
+    "expected_output": "알테오젠, 휴젤, 솔브레인",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "한양증권의 2025-04-28 종가는?"
+    },
+    "expected_output": "13,250원",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-06-17 KOSPI 지수는?"
+    },
+    "expected_output": "2950.30",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2024-10-02 KOSPI 시장에서 가장 비싼 종목은?"
+    },
+    "expected_output": "삼성바이오로직스 (977,000원)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "대한방직의 2025-04-25 종가는?"
+    },
+    "expected_output": "5,200원",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "KOSPI에서 성신양회의 2025-05-30 종가는?"
+    },
+    "expected_output": "8,710원",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "KOSDAQ에서 우진비앤지의 2024-11-14 종가는?"
+    },
+    "expected_output": "929원",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "한네트의 2024-11-20 시가은?"
+    },
+    "expected_output": "3,988원",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "KOSPI에서 삼정펄프의 2025-03-18 종가는?"
+    },
+    "expected_output": "26,250원",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "롯데케미칼의 2024-12-19 등락률은?"
+    },
+    "expected_output": "+1.09%",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-06-16 KOSDAQ 시장에서 거래량이 가장 많은 종목은?"
+    },
+    "expected_output": "우리기술 (217,764,500주)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2024-07-22 KOSPI 지수는?"
+    },
+    "expected_output": "2763.51",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-05-07 KOSPI 시장에서 거래량이 가장 많은 종목은?"
+    },
+    "expected_output": "대영포장 (51,399,504주)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-01-02 KOSDAQ 지수는?"
+    },
+    "expected_output": "686.63",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "HD현대인프라코어의 2024-07-21 종가는?"
+    },
+    "expected_output": "일요일 (종가 데이터 없음)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-05-09 KOSDAQ 시장에서 거래량이 가장 많은 종목은?"
+    },
+    "expected_output": "우리로 (37,729,480주)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "코아스템켐온의 2024-08-15 종가는?"
+    },
+    "expected_output": "광복절 (종가 데이터 없음)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-01-09 KOSDAQ 시장에서 가장 비싼 종목은?"
+    },
+    "expected_output": "알테오젠 (309,000원)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2024-12-30 KOSDAQ 시장에서 거래량이 가장 많은 종목은?"
+    },
+    "expected_output": "오리엔트정공 (31,159,420주)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-06-24 KOSDAQ 지수는?"
+    },
+    "expected_output": "800.93",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2024-11-21에서 KOSPI에서 하락률 높은 종목 5개는?"
+    },
+    "expected_output": "한화시스템, 남양유업, SNT다이내믹스, 메타랩스, 고려산업",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "삼영엠텍의 2025-05-15 등락률은?"
+    },
+    "expected_output": "-2.61%",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-04-21에 SK하이닉스의 거래량이 전체 시장 거래량의 몇 %인가?"
+    },
+    "expected_output": "해당 날짜 SK하이닉스 거래량 비중 데이터 없음",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-04-07에 카카오과 현대차 중 종가이 더 높은 종목은?"
+    },
+    "expected_output": "현대차 (176,691원)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-02-28에 현대차과 삼성SDI 중 등락률이 더 높은 종목은?"
+    },
+    "expected_output": "현대차 (-3.74%)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-04-17에 KOSPI와 KOSDAQ 중 더 높은 지수는?"
+    },
+    "expected_output": "KOSPI (2470.41)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2024-11-06에 셀트리온의 등락률이 시장 평균보다 높은가?"
+    },
+    "expected_output": "예 (+0.22% > 시장평균 -0.48%)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2024-09-08에 삼성바이오로직스의 등락률이 시장 평균보다 높은가?"
+    },
+    "expected_output": "일요일 (삼성바이오로직스 등락률 비교 데이터 없음)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-04-07에 카카오과 현대차 중 종가이 더 높은 종목은?"
+    },
+    "expected_output": "현대차 (176,691원)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-02-28에 현대차과 삼성SDI 중 등락률이 더 높은 종목은?"
+    },
+    "expected_output": "현대차 (-3.74%)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-04-17에 KOSPI와 KOSDAQ 중 더 높은 지수는?"
+    },
+    "expected_output": "KOSPI (2470.41)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2024-11-06에 셀트리온의 등락률이 시장 평균보다 높은가?"
+    },
+    "expected_output": "예 (+0.22% > 시장평균 -0.48%)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2024-12-19에 셀트리온의 거래량 순위는?"
+    },
+    "expected_output": "242위",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-05-23에 셀트리온의 거래량이 전체 시장 거래량의 몇 %인가?"
+    },
+    "expected_output": "0.03% (414,077주 / 1,319,762,040주)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-06-19에 KOSPI와 KOSDAQ 중 더 높은 지수는?"
+    },
+    "expected_output": "KOSPI (2977.74)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2024-10-28에 LG화학의 등락률이 시장 평균보다 높은가?"
+    },
+    "expected_output": "예 (+5.12% > 시장평균 +1.11%)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-05-28에 NAVER과 셀트리온 중 종가이 더 높은 종목은?"
+    },
+    "expected_output": "NAVER (187,700원)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2024-07-22에 NAVER의 거래량이 전체 시장 거래량의 몇 %인가?"
+    },
+    "expected_output": "0.04% (464,293주 / 1,310,591,051주)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-04-25에 셀트리온의 거래량 순위는?"
+    },
+    "expected_output": "538위",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2024-12-17에 삼성바이오로직스과 셀트리온 중 거래량이 더 높은 종목은?"
+    },
+    "expected_output": "셀트리온 (1,103,358주)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-02-11에 카카오뱅크과 현대차 중 시가총액이 더 큰 종목은?"
+    },
+    "expected_output": "현대차 (190,961원)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-04-09에 삼성SDI의 거래량 순위는?"
+    },
+    "expected_output": "342위",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-04-25에 NAVER과 삼성전자 중 시가총액이 더 큰 종목은?"
+    },
+    "expected_output": "NAVER (193,500원)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-03-18에 셀트리온과 삼성전자 중 등락률이 더 높은 종목은?"
+    },
+    "expected_output": "삼성전자 (+0.00%)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2024-10-17에 LG화학의 등락률이 시장 평균보다 높은가?"
+    },
+    "expected_output": "아니오 (-2.21% < 시장평균 -0.11%)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-02-14에 삼성바이오로직스과 현대차 중 거래량이 더 높은 종목은?"
+    },
+    "expected_output": "현대차 (823,619주)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-01-17에 셀트리온의 거래량 순위는?"
+    },
+    "expected_output": "369위",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2024-10-14에 현대차과 NAVER 중 종가이 더 높은 종목은?"
+    },
+    "expected_output": "현대차 (237,983원)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2024-11-06에 현대차과 NAVER 중 시가총액이 더 큰 종목은?"
+    },
+    "expected_output": "현대차 (197,760원)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2024-07-04에 카카오의 거래량 순위는?"
+    },
+    "expected_output": "208위",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-05-22에 KOSPI와 KOSDAQ 중 더 높은 지수는?"
+    },
+    "expected_output": "KOSPI (2593.67)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-02-27에 카카오과 삼성바이오로직스 중 등락률이 더 높은 종목은?"
+    },
+    "expected_output": "카카오 (+5.58%)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2024-08-07에 카카오의 등락률이 시장 평균보다 높은가?"
+    },
+    "expected_output": "아니오 (+0.79% < 시장평균 +2.17%)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2024-11-18에 카카오의 등락률이 시장 평균보다 높은가?"
+    },
+    "expected_output": "예 (+3.08% > 시장평균 +0.92%)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2024-10-07에 카카오과 LG화학 중 시가총액이 더 큰 종목은?"
+    },
+    "expected_output": "LG화학 (357,665원)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-02-03에 셀트리온의 거래량 순위는?"
+    },
+    "expected_output": "272위",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-03-27에 삼성전자과 LG화학 중 거래량이 더 높은 종목은?"
+    },
+    "expected_output": "삼성전자 (20,389,790주)",
+    "evaluation_type": "PASS_OR_FAIL"
+  },
+  {
+    "input_data": {
+      "message": "2025-05-06에 KOSPI와 KOSDAQ 중 전일 대비 상승률이 더 높은 지수는?"
+    },
+    "expected_output": "전일 대비 상승률 비교 기능 준비 중",
+    "evaluation_type": "PASS_OR_FAIL"
+  }
+]

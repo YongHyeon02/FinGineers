@@ -1,32 +1,32 @@
 # tests/bulk.py
+import json
 import re
-import pandas as pd
+from pathlib import Path
 
 from app.router import route
 from app.session import new_id
 
-CSV_PATH = "tests/test_csv/simple_queries.csv"  # 필요시 경로 조정
+JSON_PATH = Path("tests/test_json/simple_queries.json")  # 경로 필요 시 조정
 
 def is_follow_up(resp: str) -> bool:
     """
-    봇 응답이 '재질문' 인지 간단히 판별
+    봇 응답이 '재질문'인지 판별
     """
     if not isinstance(resp, str):
         return False
     resp = resp.strip()
-    if resp.startswith("질문을 더 정확히 이해하기 위해") and resp.endswith("알려주세요."):
-        return True
-    return False
+    return resp.startswith("질문을 더 정확히 이해하기 위해") and resp.endswith("알려주세요.")
 
 def main() -> None:
-    df = pd.read_csv(CSV_PATH)
+    with open(JSON_PATH, encoding="utf-8") as f:
+        data = json.load(f)
 
     total = passes = fails = follow = 0
 
-    for _, row in df.iterrows():
+    for item in data:
         cid  = new_id()
-        q    = str(row["question"])
-        exp  = str(row["expected_answer"]).strip()
+        q    = str(item["input_data"]["message"])
+        exp  = str(item["expected_output"]).strip()
         resp = route(q, cid).strip()
 
         if is_follow_up(resp):
@@ -42,7 +42,6 @@ def main() -> None:
 
         total += 1
 
-    # 요약
     print("\n── Summary ───────────────────────────")
     print(f"TOTAL: {total}  PASS: {passes}  FAIL: {fails}  FOLLOW_UP: {follow}")
 
