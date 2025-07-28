@@ -1,290 +1,60 @@
-# app/search_utils.py
+# app/search_utils.py (리팩토링 완료)
 from __future__ import annotations
-from typing import Dict, List
+from typing import Dict, List, Iterable, Tuple
 import pandas as pd
+import numpy as np
+import datetime as dt
 
-from app.data_fetcher import _download
-from app.universe import NAME_BY_TICKER
+from app.data_fetcher import _download, _next_day
+from app.universe import NAME_BY_TICKER, KOSPI_TICKERS, KOSDAQ_TICKERS
 from app.utils import _holiday_msg, _prev_bday, _next_day, _universe
 from app.ticker_lookup import to_ticker
 
-# ────────────────────────── 1. 내부 헬퍼 ──────────────────────────
-def _need_flags(cond: Dict) -> Dict[str, bool]:
-    today_close   = "price_close" in cond
-    today_volume  = "volume" in cond
-    pct_change    = "pct_change" in cond
-    vol_chg_pct   = "volume_pct" in cond
-    return {
-        "today_close":  today_close,
-        "today_volume": today_volume,
-        "pct_change":   pct_change,
-        "vol_chg_pct":  vol_chg_pct,
-        "prev_close":   pct_change,
-        "prev_volume":  vol_chg_pct,
-    }
+ALL = KOSPI_TICKERS + KOSDAQ_TICKERS
 
-def _download_for(date: str, market: str | None, need: Dict) -> pd.DataFrame:
-    tickers = _universe(market)
-    start   = _prev_bday(date) if (need["prev_close"] or need["prev_volume"]) else date
-    end     = _next_day(date)
-    return _download(tuple(tickers), start=start, end=end, interval="1d")
-
-def _filter(df: pd.DataFrame, date: str, cond: Dict, need: Dict) -> List[str]:
-    try:
-        today = df.loc[pd.to_datetime(date)]
-    except KeyError:
-        return []
-
-    try:
-        prev = df.loc[pd.to_datetime(_prev_bday(date))] if (need["prev_close"] or need["prev_volume"]) else None
-    except KeyError:
-        prev = None
-
-    out: List[str] = []
-
-
-    for t in df.columns.levels[0]:    
-        if (t, "Close") not in today or (t, "Volume") not in today:
-            continue
-
-        tc = today.get((t, "Close"), pd.NA)
-        tv = today.get((t, "Volume"), pd.NA)
-
-        if pd.isna(tc) or pd.isna(tv):
-            continue
-
-        if need["today_close"]:
-            cmin = cond["price_close"].get("min")
-            cmax = cond["price_close"].get("max")
-            if (cmin is not None and tc < cmin) or (cmax is not None and tc > cmax):
-                continue
-
-        if need["today_volume"]:
-            vmin = cond["volume"].get("min")
-            if vmin is not None and tv < vmin:
-                continue
-
-        if not (need["pct_change"] or need["vol_chg_pct"]):
-            out.append(t)
-            continue
-
-        if prev is None or (t, "Close") not in prev or (t, "Volume") not in prev:       
-            continue
-
-        pc = prev.get((t, "Close"), pd.NA)
-        pv = prev.get((t, "Volume"), pd.NA)
-
-        # 가격 변화 필요시: 전날 종가(pc), 오늘 종가(tc)
-        if need["pct_change"]:
-            if pd.isna(pc) or pd.isna(tc) or pc == 0:
-                continue
-
-        # 거래량 변화 필요시: 전날 거래량(pv), 오늘 거래량(tv)
-        if need["vol_chg_pct"]:
-            if pd.isna(pv) or pd.isna(tv) or pv == 0:
-                continue
-
-        if need["pct_change"]:
-            delta = (tc - pc) / pc * 100
-            dmin  = cond["pct_change"].get("min")
-            dmax  = cond["pct_change"].get("max")
-            if (dmin is not None and delta < dmin) or (dmax is not None and delta > dmax):
-                continue
-
-        if need["vol_chg_pct"]:
-            v_pct = (tv - pv) / pv * 100
-            vpmin = cond["volume_pct"].get("min")
-            vpmax = cond["volume_pct"].get("max")  
-            if (vpmin is not None and v_pct < vpmin) or (vpmax is not None and v_pct > vpmax):
-                continue
-        
-        out.append(t)
-
-    return out
-
-def _filter_pct_range(df: pd.DataFrame, start: str, end: str, cond: Dict) -> List[str]:
-    min_, max_ = cond["pct_change_range"].get("min"), cond["pct_change_range"].get("max")
+# ────────────────────────── 1. 가격/거래량 조건 기반 필터 ──────────────────────────
+def search_by_pct_change_range(df: pd.DataFrame, from_date: str, to_date: str, cond: dict, tickers: list[str]) -> list[str]:
+    min_, max_ = cond.get("min"), cond.get("max")
     out = []
 
-    for t in df.columns.levels[0]:
+    for t in tickers:
         try:
-            p1 = df.loc[pd.to_datetime(start), (t, "Close")]
-            p2 = df.loc[pd.to_datetime(end),   (t, "Close")]
+            p1 = df.loc[pd.to_datetime(from_date), (t, "Close")]
+            p2 = df.loc[pd.to_datetime(to_date),   (t, "Close")]
+            vol = df.loc[pd.to_datetime(to_date), (t, "Volume")]
         except KeyError:
             continue
-        if any(pd.isna(x) or x == 0 for x in (p1, p2)):
+        if any(pd.isna(x) or x == 0 for x in (p1, p2, vol)):
             continue
         change = (p2 / p1 - 1) * 100
         if (min_ is not None and change < min_) or (max_ is not None and change > max_):
             continue
         out.append(t)
+
     return out
 
-def _filter_consecutive(df: pd.DataFrame, start: str, end: str, direction: str) -> List[str]:
+def search_by_consecutive_change(df: pd.DataFrame, from_date: str, to_date: str, cond: dict, tickers: list[str]) -> list[str]:
+    direction = cond.get("direction", "up")
+    count = cond.get("count", 3)
     out = []
-    sliced = df.loc[pd.to_datetime(start):pd.to_datetime(end)]
+    sliced = df.loc[pd.to_datetime(from_date):pd.to_datetime(to_date)]
 
-    for t in df.columns.levels[0]:
+    for t in tickers:
         try:
-            close = sliced[(t, "Close")]
+            close = sliced[(t, "Close")].dropna()
+            vol = df.loc[pd.to_datetime(to_date), (t, "Volume")]
         except KeyError:
             continue
-        if close.isna().any() or len(close) < 2:
+        if len(close) < count or pd.isna(vol) or vol == 0:
             continue
         diff = close.diff().iloc[1:]
-        if direction == "up" and (diff > 0).all():
-            out.append(t)
-        elif direction == "down" and (diff < 0).all():
+        cmp = diff > 0 if direction == "up" else diff < 0
+        if cmp.rolling(count).apply(all).any():
             out.append(t)
     return out
 
-# ────────────────────────── 2. Stock Search Functions ──────────────────────────
-def search_stock_by_conditions(p: dict) -> str:
-    date = p["date"]
-    cond = p.get("conditions", {})
-    market = p.get("market")
-
-    if msg := _holiday_msg(date):
-        return msg
-
-    need = _need_flags(cond)
-    df = _download_for(date, market, need)
-    if df.empty:
-        return f"{date}의 데이터가 없습니다."
-
-    tickers = _filter(df, date, cond, need)
-    if not tickers:
-        return "조건에 맞는 종목이 없습니다"
-
-    # 거래량 0 종목 제외
-    today = df.loc[pd.to_datetime(date)]
-    tickers = [t for t in tickers if (t, "Volume") in today and today[(t, "Volume")] > 0]
-
-    # 정렬: 우선순위는 거래량 → 등락률 → 종가
-    sort_keys = []
-
-    if "volume" in cond:
-        sort_keys.append(("Volume", lambda t: today.get((t, "Volume"), 0)))
-
-    if "volume_pct" in cond and need["prev_volume"]:
-        prev = df.loc[pd.to_datetime(_prev_bday(date))]
-        sort_keys.append(("Volume Change %", lambda t: abs((today[(t, "Volume")] - prev[(t, "Volume")]) / prev[(t, "Volume")] * 100) if (t, "Volume") in prev and prev[(t, "Volume")] else 0))
-
-    if "pct_change" in cond and need["prev_close"]:
-        prev = df.loc[pd.to_datetime(_prev_bday(date))]
-        sort_keys.append(("Price Change %", lambda t: abs((today[(t, "Close")] - prev[(t, "Close")]) / prev[(t, "Close")] * 100) if (t, "Close") in prev and prev[(t, "Close")] else 0))
-
-    if "price_close" in cond:
-        sort_keys.append(("Close", lambda t: today.get((t, "Close"), 0)))
-
-    # 하나라도 있으면 첫 번째 키 기준 정렬
-    if sort_keys:
-        tickers.sort(key=sort_keys[0][1], reverse=True)
-
-    names = [NAME_BY_TICKER.get(t, t) for t in tickers]
-
-    # ─ 조건 설명 텍스트 생성 ─
-    cond_parts = []
-    if "pct_change" in cond:
-        min_, max_ = cond["pct_change"].get("min"), cond["pct_change"].get("max")
-        if min_ is not None and max_ is not None:
-            cond_parts.append(f"등락률이 {min_}% 이상 {max_}% 이하")
-        elif min_ is not None:
-            cond_parts.append(f"등락률이 {min_}% 이상")
-        elif max_ is not None:
-            cond_parts.append(f"등락률이 {max_}% 이하")
-
-    if "volume_pct" in cond:
-        min_, max_ = cond["volume_pct"].get("min"), cond["volume_pct"].get("max")
-        if min_ is not None and max_ is not None:
-            cond_parts.append(f"거래량이 전날대비 {min_}% 이상 {max_}% 이하")
-        elif min_ is not None:
-            cond_parts.append(f"거래량이 전날대비 {min_}% 이상")
-        elif max_ is not None:
-            cond_parts.append(f"거래량이 전날대비 {max_}% 이하")
-
-    if "volume" in cond:
-        min_ = cond["volume"].get("min")
-        if min_ is not None:
-            cond_parts.append(f"거래량이 {min_:,}주 이상")
-
-    if "price_close" in cond:
-        min_, max_ = cond["price_close"].get("min"), cond["price_close"].get("max")
-        if min_ is not None and max_ is not None:
-            cond_parts.append(f"종가가 {min_:,}원 이상 {max_:,}원 이하")
-        elif min_ is not None:
-            cond_parts.append(f"종가가 {min_:,}원 이상")
-        elif max_ is not None:
-            cond_parts.append(f"종가가 {max_:,}원 이하")
-
-    cond_text = " 및 ".join(cond_parts) if cond_parts else "조건에 맞는"
-    market_txt = f"{market}에서 " if market else ""
-    date_text = f"{date}에 "
-
-    return f"{date_text}{market_txt}{cond_text}인 종목은 다음과 같습니다.\n{', '.join(names)}"
-
-def search_stock_by_range_return(p: dict) -> str:
-    date_from, date_to = p["date_from"], p["date_to"]
-    cond = p.get("conditions", {})
-    market = p.get("market")
-
-    tickers = tuple(_universe(market))
-    df = _download(tickers, start=date_from, end=_next_day(date_to), interval="1d")
-    if df.empty:
-        return f"{date_from}~{date_to}의 데이터가 없습니다."
-
-    # ─ 누적 수익률 조건
-    if "pct_change_range" in cond:
-        out = _filter_pct_range(df, date_from, date_to, cond)
-        if not out:
-            return "조건에 맞는 종목이 없습니다"
-        out.sort(key=lambda t: abs((df.loc[last_day, (t, "Close")] / df.loc[pd.to_datetime(date_from), (t, "Close")] - 1) * 100), reverse=True)
-        # 거래량 0 종목 제거
-        last_day = pd.to_datetime(date_to)
-        out = [t for t in out if (t, "Volume") in df.columns and df.loc[last_day, (t, "Volume")] > 0]
-        names = [NAME_BY_TICKER.get(t, t) for t in out]
-
-        min_, max_ = cond["pct_change_range"].get("min"), cond["pct_change_range"].get("max")
-        if min_ is not None and max_ is not None:
-            cond_text = f"누적 수익률이 {min_}% 이상 {max_}% 이하"
-        elif min_ is not None:
-            cond_text = f"누적 수익률이 {min_}% 이상"
-        elif max_ is not None:
-            cond_text = f"누적 수익률이 {max_}% 이하"
-        else:
-            cond_text = "조건에 맞는"
-
-        market_txt = f"{market}에서 " if market else ""
-        return f"{date_from}부터 {date_to}까지 {market_txt}{cond_text}인 종목은 다음과 같습니다.\n{', '.join(names)}"
-
-    # ─ 연속 상승/하락 조건
-    elif "consecutive_change" in cond:
-        direction = cond["consecutive_change"]
-        out = _filter_consecutive(df, date_from, date_to, direction)
-        if not out:
-            return "조건에 맞는 종목이 없습니다"
-        # 거래량 0 종목 제거
-        last_day = pd.to_datetime(date_to)
-        out = [t for t in out if (t, "Volume") in df.columns and df.loc[last_day, (t, "Volume")] > 0]
-        names = [NAME_BY_TICKER.get(t, t) for t in out]
-
-        word = "연속 상승" if direction == "up" else "연속 하락"
-        market_txt = f"{market}에서 " if market else ""
-        return f"{date_from}부터 {date_to}까지 {market_txt}{word}한 종목은 다음과 같습니다.\n{', '.join(names)}"
-
-    else:
-        return "지원하지 않는 조건입니다."
-    
-# ────────────────────────── 3. Count/Date Search Functions ──────────────────────────
-def search_cross_count_by_stock(p: dict) -> str:
-    from app.signal_utils import count_crosses
-    name = p["tickers"][0] if p["tickers"] else None
-    cond = p.get("conditions", {})
-    if not name:
-        return "[ERROR] 종목명이 필요합니다."
-    from_date, to_date = p["date_from"], p["date_to"]
+def search_cross_count_by_stock(name: str, from_date: str, to_date: str, side: str) -> str:
     g, d = count_crosses(from_date, to_date, name)
-    side = cond.get("side")
     if side == "golden":
         return f"{name}에서 {from_date}부터 {to_date}까지 골든크로스가 발생한 횟수는 {g}번입니다."
     elif side == "dead":
@@ -294,13 +64,360 @@ def search_cross_count_by_stock(p: dict) -> str:
     else:
         return f"{name}에서 {from_date}부터 {to_date}까지 골든크로스 {g}번, 데드크로스 {d}번 발생했습니다."
 
-def search_cross_dates_by_condition(p: dict) -> str:
-    from app.signal_utils import list_crossed_stocks
-    from_date, to_date = p["date_from"], p["date_to"]
-    cond = p.get("conditions", {})
-    side = cond.get("side")
-    tickers = list_crossed_stocks(from_date, to_date, cond)
-    if not tickers:
-        return "조건에 맞는 종목 없음"
-    cross_txt = "골든크로스" if side == "golden" else "데드크로스"
-    return f"{from_date}부터 {to_date}까지 {cross_txt}가 발생한 종목은 다음과 같습니다.\n{', '.join(tickers)}"
+def search_cross_dates_by_condition(df: pd.DataFrame, from_date: str, to_date: str, side: str, tickers: list[str]) -> list[str]:
+    window_short, window_long = 5, 20
+    out = []
+
+    for t in tickers:
+        if (t, "Close") not in df.columns:
+            continue
+        close = df[t, "Close"].dropna().loc[from_date:to_date]
+        if len(close) < window_long:
+            continue
+        ma_short = close.rolling(window=window_short).mean()
+        ma_long  = close.rolling(window=window_long).mean()
+        prev_diff = None
+
+        for i in range(len(close)):
+            if pd.isna(ma_short.iloc[i]) or pd.isna(ma_long.iloc[i]):
+                continue
+            diff = ma_short.iloc[i] - ma_long.iloc[i]
+            if prev_diff is not None:
+                if side == "golden" and prev_diff < 0 and diff > 0:
+                    out.append(t)
+                    break
+                if side == "dead" and prev_diff > 0 and diff < 0:
+                    out.append(t)
+                    break
+            prev_diff = diff
+    return out
+
+ALL = KOSPI_TICKERS + KOSDAQ_TICKERS
+
+# ───────────────────────────────────────────────
+def compute_rsi(series: pd.Series, date: str, window: int = 14) -> float | None:
+    date = pd.to_datetime(date)
+    series = series.dropna()
+    if date not in series.index:
+        return None
+    end_loc = series.index.get_loc(date)
+    if end_loc < window:
+        return None
+    window_series = series.iloc[end_loc - window : end_loc + 1]
+    delta = window_series.diff().iloc[1:]
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+    avg_gain = gain.mean()
+    avg_loss = loss.mean()
+    if avg_loss == 0:
+        return 100.0
+    rs = avg_gain / avg_loss
+    return 100 - (100 / (1 + rs))
+
+# ───────────────────────────────────────────────
+def detect_rsi(df: pd.DataFrame, date: str, cond: dict, tickers: list[str]) -> list[str]:
+    window = cond.get("window", 14)
+    min_, max_ = cond.get("min"), cond.get("max")
+    out = []
+
+    for ticker in tickers:
+        if (ticker, "Volume") not in df.columns:
+            continue
+        vol = df[ticker, "Volume"]
+        if date not in vol or vol[date] == 0:
+            continue
+
+        close = df[ticker, "Adj Close"].dropna()
+        rsi = compute_rsi(close, date, window)
+        if rsi is None:
+            continue
+        if min_ is not None and rsi < min_:
+            continue
+        if max_ is not None and rsi > max_:
+            continue
+        out.append(ticker)
+
+    return out
+
+
+# ───────────────────────────────────────────────
+def detect_volume_spike(df: pd.DataFrame, date: str, cond: dict, tickers: list[str]) -> list[str]:
+    window = cond.get("window", 20)
+    threshold = cond.get("volume_ratio", {}).get("min", 0)
+    out = []
+
+    for ticker in tickers:
+        if (ticker, "Adj Close") not in df.columns:
+            continue
+        vol = df[ticker, "Volume"].dropna()
+        if date not in vol:
+            continue
+        hist = vol.loc[:date]
+        if len(hist) < window:
+            continue
+        past = hist.iloc[-window:]
+        avg = past.mean()
+        today = vol.loc[date]
+        if pd.isna(avg) or avg == 0:
+            continue
+        ratio = today / avg * 100 - 100
+        if ratio >= threshold:
+            out.append(ticker)
+
+    return out
+
+# ───────────────────────────────────────────────
+def detect_ma_break(df: pd.DataFrame, date: str, cond: dict, tickers: list[str]) -> list[str]:
+    window = cond.get("window", 20)
+    threshold = cond.get("diff_pct", {}).get("min", 0)
+    out = []
+
+    for ticker in tickers:    
+        if (ticker, "Adj Close") not in df.columns:
+            continue
+        close = df[ticker, "Adj Close"].dropna()
+        if date not in close or len(close) < window:
+            continue
+        ma = close.loc[:date].iloc[-window:].mean()
+        price = close.loc[date]
+        if ma == 0 or pd.isna(price):
+            continue
+        pct_diff = (price - ma) / ma * 100
+        if pct_diff >= threshold:
+            out.append(ticker)
+
+    return out
+
+# ───────────────────────────────────────────────
+def detect_bollinger_touch(df: pd.DataFrame, date: str, band: str, tickers: list[str]) -> list[str]:
+    window = 20
+    std_mul = 2
+    out = []
+
+    for ticker in tickers:
+        if (ticker, "Adj Close") not in df.columns:
+            continue
+        close = df[ticker, "Adj Close"].dropna()
+        if date not in close or len(close) < window:
+            continue
+        hist = close.loc[:date]        
+        if len(hist) < window:
+            continue
+        ma = hist.iloc[-window:].mean()
+        std = hist.iloc[-window:].std()
+        upper = ma + std_mul * std
+        lower = ma - std_mul * std
+        price = close.loc[date]
+        if band == "upper" and price >= upper:
+            out.append(ticker)
+        elif band == "lower" and price <= lower:
+            out.append(ticker)
+    return out
+
+# ───────────────────────────────────────────────
+def count_crosses(from_date: str, to_date: str, target: str) -> tuple[int, int]:
+    code = to_ticker(target)
+    if code is None:
+        return -1, -1
+    start = (pd.Timestamp(from_date) - pd.Timedelta(days=60)).strftime("%Y-%m-%d")
+    end = (pd.Timestamp(to_date) + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    df = _download((code,), start=start, end=end)
+    close = df[code, "Adj Close"].dropna()
+    ma5 = close.rolling(5).mean()
+    ma20 = close.rolling(20).mean()
+    delta = ma5 - ma20
+    prev_sign = delta.shift(1).apply(lambda x: 1 if x > 0 else -1 if x < 0 else 0)
+    curr_sign = delta.apply(lambda x: 1 if x > 0 else -1 if x < 0 else 0)
+    cross_dates = (prev_sign * curr_sign < 0)
+    golden = 0
+    dead = 0
+    for d in cross_dates.index:
+        if from_date <= d.strftime("%Y-%m-%d") <= to_date:
+            if prev_sign[d] < 0 and curr_sign[d] > 0:
+                golden += 1
+            elif prev_sign[d] > 0 and curr_sign[d] < 0:
+                dead += 1
+    return golden, dead
+
+
+# ───────────────────────────────────────────────────────────
+# ⑤ 캔들스틱 패턴: 3-연속 양봉/음봉 (‘적삼병’ / ‘흑삼병’)
+# ───────────────────────────────────────────────────────────
+def _slice_three(sr: pd.Series, loc: int) -> Tuple[pd.Series, pd.Series] | None:
+    """loc(정수 인덱스) 포함해 직전 2일·당일 총 3거래일을 반환"""
+    if loc < 2:
+        return None
+    return sr.iloc[loc - 2 : loc + 1]
+
+def _white(open_s, close_s) -> bool:
+    # 3연속 양봉 + 종가 지속 상승
+    return bool((close_s > open_s).all() and np.diff(close_s).min() > 0)
+
+def _black(open_s, close_s) -> bool:
+    # 3연속 음봉 + 종가 지속 하락
+    return bool((close_s < open_s).all() and np.diff(close_s).max() < 0)
+
+def _scan_three_pattern(
+    pattern: str,
+    start: str,
+    end: str,
+    tickers: Iterable[str] | None = None,
+) -> List[Tuple[str, str]]:
+    """
+    - pattern: "적삼병" | "흑삼병"
+    - 반환: [(ticker, 'YYYY-MM-DD'), ...]
+    """
+    if tickers is None or not tickers:
+        tickers = tuple(ALL)
+
+    df = _download(tuple(tickers),start=start, end=_next_day(end), interval="1d")
+    if df.empty or not isinstance(df.columns, pd.MultiIndex):
+        return []
+    occurs: list[Tuple[str, str]] = []
+    for t in df.columns.levels[0]:
+        try:
+            op = df[t, "Open"].dropna()
+            cl = df[t, "Adj Close"].dropna()
+        except KeyError:
+            continue
+
+        # ── 연속 3거래일 슬라이딩 ──────────────────────────
+        for idx in range(2, len(op)):
+            sub_o = _slice_three(op, idx)
+            sub_c = _slice_three(cl, idx)
+            if sub_o is None or sub_c is None:
+                continue            # 자료 부족
+
+            if (pattern == "적삼병" and _white(sub_o, sub_c)) or \
+               (pattern == "흑삼병" and _black(sub_o, sub_c)):
+                occurs.append((t, str(op.index[idx].date())))
+    return occurs
+
+def three_pattern_dates(ticker: str, pattern: str, date_from: str, date_to: str) -> str:
+    occ = _scan_three_pattern(pattern, date_from, date_to, [ticker])
+    if not occ:
+        return (f"{NAME_BY_TICKER.get(ticker, ticker)}은(는) {date_from}~{date_to} 기간에 {pattern} 패턴이 없습니다.")
+    dates = ", ".join(d for _, d in occ)
+    return (f"{NAME_BY_TICKER.get(ticker, ticker)} ({date_from}~{date_to}) {pattern} 발생일은 {dates}입니다.")
+
+def three_pattern_counts(ticker: str, pattern: str, date_from: str, date_to: str) -> str:
+    occ = _scan_three_pattern(pattern, date_from, date_to, [ticker])
+    counts = len(occ)
+    return (f"{NAME_BY_TICKER.get(ticker, ticker)} ({date_from}~{date_to}) {pattern} 발생 횟수는 {counts}입니다.")
+
+def check_three_pattern_occurrence(df: pd.DataFrame, pattern: str, date_from: str, date_to: str, ticker: str) -> bool:
+    """
+    주어진 df에 대해, 특정 ticker가 구간 내에 지정한 패턴을 최소 1회 만족하는지 여부 반환
+    - pattern: "적삼병" or "흑삼병"
+    """
+    try:
+        op = df[ticker, "Open"].dropna().loc[date_from:date_to]
+        cl = df[ticker, "Adj Close"].dropna().loc[date_from:date_to]
+    except KeyError:
+        return False
+
+    for idx in range(2, len(op)):
+        sub_o = _slice_three(op, idx)
+        sub_c = _slice_three(cl, idx)
+        if sub_o is None or sub_c is None:
+            continue
+
+        if pattern == "적삼병" and _white(sub_o, sub_c):
+            return True
+        elif pattern == "흑삼병" and _black(sub_o, sub_c):
+            return True
+
+    return False
+
+def three_pattern_tickers( df: pd.DataFrame, pattern: str, date_from: str, date_to: str, tickers: list[str],) -> list[str]:
+    result = []
+    for t in tickers:
+        if (t, "Open") not in df.columns or (t, "Adj Close") not in df.columns:
+            continue
+        if check_three_pattern_occurrence(df, pattern, date_from, date_to, t):
+            result.append(t)
+    return result
+
+def search_by_price_close(df: pd.DataFrame, date: str, cond: dict, tickers: list[str]) -> list[str]:
+    try:
+        today = df.loc[pd.to_datetime(date)]
+    except KeyError:
+        return []
+
+    min_, max_ = cond.get("min"), cond.get("max")
+    result = []
+    for t in tickers:
+        if (t, "Close") not in today or (t, "Volume") not in today:
+            continue
+        close = today[(t, "Close")]
+        volume = today[(t, "Volume")]
+        if pd.isna(close) or volume == 0:
+            continue
+        if (min_ is not None and close < min_) or (max_ is not None and close > max_):
+            continue
+        result.append(t)
+    return result
+
+def search_by_volume(df: pd.DataFrame, date: str, cond: dict, tickers: list[str]) -> list[str]:
+    try:
+        today = df.loc[pd.to_datetime(date)]
+    except KeyError:
+        return []
+
+    min_, max_ = cond.get("min"), cond.get("max")
+    result = []
+    for t in tickers:
+        if (t, "Volume") not in today:
+            continue
+        vol = today.get((t, "Volume"))
+        if pd.isna(vol) or vol == 0:
+            continue
+        if (min_ is not None and vol < min_) or (max_ is not None and vol > max_):
+            continue
+        result.append(t)
+    return result
+
+def search_by_pct_change(df: pd.DataFrame, date: str, cond: dict, tickers: list[str]) -> list[str]:
+    try:
+        today = df.loc[pd.to_datetime(date)]
+        yest = df.loc[pd.to_datetime(_prev_bday(date))]
+    except KeyError:
+        return []
+
+    dmin, dmax = cond.get("min"), cond.get("max")
+    result = []
+    for t in tickers:
+        if (t, "Close") not in today or (t, "Close") not in yest or (t, "Volume") not in today:
+            continue
+        c1 = today[(t, "Close")]
+        c0 = yest[(t, "Close")]
+        vol = today[(t, "Volume")]
+        if pd.isna(c0) or pd.isna(c1) or c0 == 0 or vol == 0:
+            continue
+        pct = (c1 - c0) / c0 * 100
+        if (dmin is not None and pct < dmin) or (dmax is not None and pct > dmax):
+            continue
+        result.append(t)
+    return result
+
+def search_by_volume_pct(df: pd.DataFrame, date: str, cond: dict, tickers: list[str]) -> list[str]:
+    try:
+        today = df.loc[pd.to_datetime(date)]
+        yest = df.loc[pd.to_datetime(_prev_bday(date))]
+    except KeyError:
+        return []
+
+    vmin, vmax = cond.get("min"), cond.get("max")
+    result = []
+    for t in tickers:
+        if (t, "Volume") not in today or (t, "Volume") not in yest:
+            continue
+        v1 = today[(t, "Volume")]
+        v0 = yest[(t, "Volume")]
+        if pd.isna(v0) or pd.isna(v1) or v0 == 0:
+            continue
+        pct = (v1 - v0) / v0 * 100
+        if (vmin is not None and pct < vmin) or (vmax is not None and pct > vmax):
+            continue
+        result.append(t)
+    return result

@@ -7,8 +7,6 @@ from app.llm_bridge import extract_params, fill_missing
 from app.task_handlers import (
     task_search,
     task1_simple,
-    task2_condition,
-    task3_signal,
     task4_ambiguous,
 )
 from config import AmbiguousTickerError
