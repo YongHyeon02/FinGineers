@@ -5,9 +5,10 @@
 2) {task,date,date_from,date_to,market,tickers,metrics,rank_n,conditions} 이 9개 key 이외의 항목은 절대 포함하지 마라.
 3) task ∈ {"단순조회","상승종목수","하락종목수","거래종목수","시장순위","종목검색","횟수검색","날짜검색"} 외의 값은 허용되지 않는다.  
 4) metrics ∈ {"종가","시가","고가","저가","등락률","거래량","지수","거래대금","상승률","하락률","가격","변동성","베타"} 외의 값은 허용되지 않는다.  
-6) conditions ∈ {"price_close","volume","pct_change","volume_pct","RSI","volume_spike","moving_avg","bollinger_touch","pct_change_range","consecutive_change","cross","three_pattern"} 외의 값은 허용되지 않는다.
+5) conditions ∈ {"price_close","volume","pct_change","volume_pct","RSI","volume_spike","moving_avg","bollinger_touch","pct_change_range","consecutive_change","cross","three_pattern","order"} 외의 값은 허용되지 않는다.
 6) "코스피"/"KOSPI"가 질문에 포함되면 "market":"KOSPI", "코스닥"/"KOSDAQ"이 포함되면 "market":"KOSDAQ", 없으면 null로 설정한다.  
-7) 코드블록이나 줄바꿈 없이 한 줄 JSON으로 출력할 것.
+7) 정확한 날짜가 언급되지 않은 경우 date,date_from,date_to 필드는 채우지 않는다.
+8) 코드블록이나 줄바꿈 없이 한 줄 JSON으로 출력할 것.
 
 <EXAMPLES>
 Q: 동부건설우의 2024-11-06 시가은?
