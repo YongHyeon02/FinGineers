@@ -67,9 +67,9 @@ TASK_REGISTRY: Dict[str, dict] = {
 THREE_PATTERN_METRICS = {"적삼병", "흑삼병"}
 
 # ──────────────────────────────────────────────
-def _safe_handle(fn: HandlerFn, question: str, params: dict) -> Optional[str]:
+def _safe_handle(fn: HandlerFn, question: str, params: dict, api_key: str) -> Optional[str]:
     try:
-        out = fn(question, params)
+        out = fn(question, params, api_key)
         # print(out)
         return out if out else None
     except AmbiguousTickerError:
@@ -108,9 +108,8 @@ def _missing_fields(task: str, params: dict) -> set[str]:
         if is_transaction_amount_query:
             miss.discard("tickers")
 
-        cond = params.get("conditions") or {}
-
-'''   for key, val in cond.items():
+    cond = params.get("conditions", {})
+    for key, val in cond.items():
         if key == "volume_pct":
             if not isinstance(val, dict) or "min" not in val:
                 miss.add("conditions:volume_pct:min")
@@ -145,7 +144,7 @@ def _missing_fields(task: str, params: dict) -> set[str]:
 
         elif key == "three_pattern":
             if val not in {"적삼병", "흑삼병"}:
-                miss.add("conditions:three_pattern")'''
+                miss.add("conditions:three_pattern")
 
 
 def _build_follow_up(missing: set[str]) -> str:
@@ -175,7 +174,7 @@ def _build_follow_up(missing: set[str]) -> str:
 
 
 # ────────────────────────────── 메인 ──────────────────────────────
-def route(question: str, conv_id: str) -> str:
+def route(question: str, conv_id: str, api_key: str) -> str:
     """
     conv_id : 세션 ID (웹소켓 UUID, 슬랙 thread_ts 등)
     """
@@ -187,7 +186,7 @@ def route(question: str, conv_id: str) -> str:
         # ── 1) 미완성 params 가 세션에 저장돼 있나?
         pending = session.get(conv_id)
         if pending:
-            follow = extract_params(question)
+            follow = extract_params(question, api_key)
             for k, v in follow.items():
                 if not v:
                     continue
@@ -201,7 +200,7 @@ def route(question: str, conv_id: str) -> str:
             filled: dict[str, Any] = {}
             # 사용자가 보낸 follow-up 문장으로 슬롯 채우기
             for slot in _missing_fields(pending["task"], pending):
-                v = fill_missing(question, slot)
+                v = fill_missing(question, slot, api_key)
                 # print(f"{slot}: {v}")
                 if v:
                     filled.update(v)
@@ -220,13 +219,13 @@ def route(question: str, conv_id: str) -> str:
                 return _build_follow_up(still_missing)
 
             hinfo = TASK_REGISTRY[pending["task"]]
-            answer = _safe_handle(hinfo["fn"], question, pending) or _FAIL
+            answer = _safe_handle(hinfo["fn"], question, pending, api_key) or _FAIL
             if answer != _FAIL:
                 session.clear(conv_id)
             return answer
 
         # ── 2) 최초 질문 파싱
-        params = extract_params(question)
+        params = extract_params(question, api_key)
         _auto_fill_relative_dates(question, params)
         print(params)
         task   = params.get("task")
@@ -242,7 +241,7 @@ def route(question: str, conv_id: str) -> str:
 
         # ── 3) 즉시 실행
         hinfo = TASK_REGISTRY[task]
-        return _safe_handle(hinfo["fn"], question, params) or _FAIL
+        return _safe_handle(hinfo["fn"], question, params, api_key) or _FAIL
     except AmbiguousTickerError as e:
         cur = session.get(conv_id)
         if cur:

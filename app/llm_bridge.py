@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 import requests
+import time
 from app.constants import TASK_REQUIRED
 from config import HCX_CONF_THRESHOLD
 # from app.parsers import _regex_parse      # 순환 참조 방지
@@ -42,12 +43,11 @@ def _safe_json(text: str) -> Optional[dict]:
         return None
 
 
-def _hcx_chat(messages: List[dict], *, max_tokens: int = 256, temperature: float = 0.5) -> Optional[str]:
+def _hcx_chat(messages: List[dict], *, api_key: str, max_tokens: int = 256, temperature: float = 0.5) -> Optional[str]:
     """
     messages = [{"role":"system","content":...}, {"role":"user","content":...}]
     → assistant content 문자열 (실패 시 None)
     """
-    api_key = os.getenv("HYPERCLOVA_API_KEY")
     if not api_key:
         logger.info("HyperCLOVA 호출 건너뜀 (API Key 없음)")
         return None
@@ -90,28 +90,42 @@ _DEF_DATE        = (dt.date.today() - dt.timedelta(days=1)).isoformat()
 _DEF_TOPN        = 10
 
 @functools.lru_cache(maxsize=256)
-def extract_params(question: str) -> Dict[str, Any]:
+def extract_params(question: str, api_key: str) -> Dict[str, Any]:
     """
-    규칙 파서(_regex_parse) → HCX JSON → 보정
+    HCX 호출 후 결과 파싱 + 기본 필드 보정
     """
-    
-    # prim = _regex_parse(question)
 
-    # if prim and _JSON_EXPECT.issubset(prim):
-    #     return prim
+    def _try_hcx_chat_with_retry(max_retries=3, initial_delay=1.0) -> dict:
+        delay = initial_delay
+        for attempt in range(max_retries):
+            try:
+                hcx_ans = _hcx_chat(
+                    [{"role": "system", "content": SYSTEM_PROMPT},
+                     {"role": "user", "content": question}],
+                    api_key=api_key
+                ) or ""
+                return _safe_json(hcx_ans) or {}
 
-    # HCX 호출
-    hcx_ans = _hcx_chat(
-        [{"role": "system", "content": SYSTEM_PROMPT},
-         {"role": "user",   "content": question}]
-    ) or ""
-    data = _safe_json(hcx_ans) or {}
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 429:
+                    logger.warning(f"429 Too Many Requests – {delay:.1f}s 후 재시도 ({attempt+1}/{max_retries})")
+                    time.sleep(delay)
+                    delay *= 2  # 지수 백오프
+                else:
+                    logger.exception("HCX API 오류")
+                    break
+
+            except Exception:
+                logger.exception("HCX 파싱 도중 예외 발생")
+                break
+
+        return {}
+
+    # HCX 호출 (최대 3회까지 재시도)
+    data = _try_hcx_chat_with_retry()
 
     if _JSON_EXPECT_MIN.issubset(data):
-        # 규칙 파서 결과를 우선 보존
-        # data.update({k: v for k, v in prim.items() if v})
-        # 디폴트 보정
-        data.setdefault("date",   _DEF_DATE)
+        data.setdefault("date", _DEF_DATE)
         data.setdefault("date_from", _DEF_DATE)
         data.setdefault("date_to", _DEF_DATE)
         data.setdefault("market", None)
@@ -122,7 +136,8 @@ def extract_params(question: str) -> Dict[str, Any]:
         return data
 
     logger.warning("HCX 파싱 실패: %s", question)
-    return {"task": "unknown"}            # 핸들러 쪽에서 _FAIL 처리
+    return {"task": "unknown"}
+
 
 # ────────────────────────── ② 슬롯 전용 파서 ─────────────────────────
 _FOLLOW_PROMPTS_PATH = Path(__file__).with_name("prompts") / "follow_prompt.json"
@@ -132,7 +147,7 @@ try:
 except json.JSONDecodeError as e:
     raise RuntimeError(f"follow_prompts.json 파싱 오류: {e}")   
 
-def fill_missing(user_reply: str, slot: str) -> dict | None:
+def fill_missing(user_reply: str, slot: str, api_key: str) -> dict | None:
     """
     후속 답변에서 특정 slot 하나만 추출 → {slot: value}
     실패 시 None
@@ -141,6 +156,7 @@ def fill_missing(user_reply: str, slot: str) -> dict | None:
     hcx_ans = _hcx_chat(
         [{"role": "system", "content": prompt},
          {"role": "user",   "content": user_reply}],
+        api_key=api_key,
         max_tokens=64, temperature=0.2,
     ) or ""
     data = _safe_json(hcx_ans)
@@ -168,7 +184,7 @@ _DISAMBIG_SYS = """
 {"best": "<후보 중 하나 그대로>", "confidence": 0~1}
 """
 
-def disambiguate_ticker_hcx(alias: str, candidates: list[str]) -> tuple[str, float]:
+def disambiguate_ticker_hcx(alias: str, candidates: list[str], api_key: str) -> tuple[str, float]:
     """
     별칭(alias)과 후보 종목명 리스트를 HyperCLOVA-X에 넘겨
     가장 적합한 종목명과 confidence(0~1)를 받아온다.
@@ -185,6 +201,7 @@ def disambiguate_ticker_hcx(alias: str, candidates: list[str]) -> tuple[str, flo
             {"role": "system", "content": _DISAMBIG_SYS},
             {"role": "user",   "content": usr_prompt},
         ],
+        api_key=api_key,
         max_tokens=128, temperature=0.0
     ) or ""
     # print(ans)      

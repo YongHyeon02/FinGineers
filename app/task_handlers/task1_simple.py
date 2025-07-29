@@ -45,7 +45,7 @@ def _fmt(val, kind):
         return f"{val:+.2f}%"
     return f"{val:,.0f}원"
 
-def _answer_multi(params: dict) -> str:
+def _answer_multi(params: dict, api_key: str) -> str:
     date     = params["date"]
     metrics  = params["metrics"]
     aliases  = params["tickers"]
@@ -55,11 +55,11 @@ def _answer_multi(params: dict) -> str:
 
     for alias in aliases:
         try:
-            info = to_ticker(alias, with_name=True)
+            info = to_ticker(alias, with_name=True, api_key=api_key)  # 한글명 → 코드
         except AmbiguousTickerError as e:
             raise
         except Exception:                                    # 완전 미인식
-            cands = disambiguate_ticker_hcx(alias)[:6]
+            cands = disambiguate_ticker_hcx(alias, api_key)[:6]
             raise AmbiguousTickerError(alias, cands)
 
         tic, name = info.ticker, info.name
@@ -110,13 +110,13 @@ def _answer_multi(params: dict) -> str:
     bullet = "\n".join(f"- {r}" for r in results)
     return f"{date} 기준 종목별 지표는 다음과 같습니다.\n{bullet}"
 
-def _answer_price(params: dict) -> str:
+def _answer_price(params: dict, api_key: str) -> str:
     raw_name   = params["tickers"][0]
     date   = params["date"]
     field_ko = params["metrics"][0]          # 종가·시가·고가·저가·등락률 중 하나
     if (msg := _holiday_msg(date)):
         return msg
-    info: TickerInfo = to_ticker(raw_name, with_name = True)
+    info: TickerInfo = to_ticker(raw_name, with_name = True, api_key=api_key)
     ticker, off_name = info.ticker, info.name
 
     # 가격 데이터가 없는 주식(거래정지) → 0 처리
@@ -432,11 +432,11 @@ def _answer_beta_rank(date, market, n, order="low"):
 
 
 def _answer_risk_single(date: str, tickers: Iterable[str], metrics: Iterable[str],
-                        market: str | None) -> str:
+                        market: str | None, api_key: str) -> str:
     results = []
     for raw in tickers:
         try:
-            info = to_ticker(raw, with_name=True)          # 한글명 → 코드
+            info = to_ticker(raw, with_name=True, api_key=api_key)          # 한글명 → 코드
         except Exception:
             results.append(f"{raw}: 티커 인식 실패")
             continue
@@ -468,7 +468,7 @@ def _answer_risk_single(date: str, tickers: Iterable[str], metrics: Iterable[str
         return f"{date} 기준 종목별 지표는 다음과 같습니다.\n{bullet}"
 
 # ─────────────────────────── 메인 엔트리 ───────────────────────────
-def handle(_: str, p: dict) -> str:
+def handle(_: str, p: dict, api_key: str) -> str:
     """
     Router 로부터 (원본질문, params) 을 받는다.
     원본 질문은 로그·후행 질문 생성용으로만 사용하므로
@@ -486,9 +486,9 @@ def handle(_: str, p: dict) -> str:
             if len(p["tickers"]) > 1 or len(metric_set) > 1:
                 return _answer_multi(p)
             if metric_set & {"변동성", "베타"}:
-                return _answer_risk_single(p["date"], p["tickers"], p["metrics"], p.get("market"))
+                return _answer_risk_single(p["date"], p["tickers"], p["metrics"], p.get("market"), api_key)
             if metric_set <= {"종가","시가","고가","저가","등락률","거래량"}:
-                return _answer_price(p)
+                return _answer_price(p, api_key)
         if metric == "지수":
             mkt = p.get("market")
             if mkt == "KOSPI":

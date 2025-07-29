@@ -111,7 +111,7 @@ def _init_embed_index():
 #         super().__init__(identifier, best, confidence)
 
 
-def to_ticker(identifier: str, *, with_name: bool = False) -> str | TickerInfo:
+def to_ticker(identifier: str, *, with_name: bool = False, api_key: str) -> str | TickerInfo:
     """
     1) _STATIC_MAP에서 먼저 찾기
     2) 없으면 yfinance Lookup/Search
@@ -161,7 +161,7 @@ def to_ticker(identifier: str, *, with_name: bool = False) -> str | TickerInfo:
     official_names = [n for n, _ in candidates]
 
     # ----- ⑤ hcx에게 어떤 후보가 alias와 가장 유사한지 판단시키기 -----
-    best, conf = disambiguate_ticker_hcx(alias=identifier, candidates=official_names)
+    best, conf = disambiguate_ticker_hcx(alias=identifier, candidates=official_names, api_key=api_key)
     
     if conf >= HCX_CONF_THRESHOLD:
         ticker = _STATIC_MAP[best]

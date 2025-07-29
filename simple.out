@@ -1,0 +1,54 @@
+{'task': '시장순위', 'date': '2025-06-27', 'date_from': None, 'date_to': None, 'market': 'KOSPI', 'tickers': [], 'metrics': ['거래량'], 'rank_n': 10, 'conditions': {}}
+Q: 2025-06-27에서 KOSPI에서 거래량 많은 종목 10개는?
+expected: KCTC, 동방, 삼성전자, 콜마홀딩스, 한국전력, 카카오, 카카오페이, 두산에너빌리티, 제주은행, 형지엘리트
+actual:   2025-06-27에 KOSPI에서 거래량 낮은 종목 상위 10개 종목은 다음과 같습니다.
+KCTC, 동방, 삼성전자, 콜마홀딩스, 한국전력, 카카오, 카카오페이, 두산에너빌리티, 제주은행, 형지엘리트
+
+{'task': '단순조회', 'date': '2024-10-28', 'date_from': None, 'date_to': None, 'market': 'KOSDAQ', 'tickers': ['대성미생물'], 'metrics': ['종가'], 'rank_n': None, 'conditions': {}}
+Q: KOSDAQ에서 대성미생물의 2024-10-28 종가는?
+expected: 10,008원
+actual:   2024-10-28에 대성미생물의 종가은(는) 10,090원 입니다.
+
+{'task': '단순조회', 'date': '2025-06-25', 'date_from': None, 'date_to': None, 'market': None, 'tickers': ['도화엔지니어링'], 'metrics': ['고가'], 'rank_n': None, 'conditions': {}}
+Q: 도화엔지니어링의 2025-06-25 고가은?
+expected: 6,890원
+actual:   2025-06-25에 도화엔지니어링의 고가은(는) 6,890원 입니다.
+
+{'task': '단순조회', 'date': '2024-08-01', 'date_from': None, 'date_to': None, 'market': 'KOSPI', 'tickers': ['대덕1우'], 'metrics': ['종가'], 'rank_n': None, 'conditions': {}}
+Q: KOSPI에서 대덕1우의 2024-08-01 종가는?
+expected: 6,457원
+actual:   2024-08-01에 대덕1우의 종가은(는) 6,940원 입니다.
+
+{'task': '단순조회', 'date': '2024-09-24', 'date_from': None, 'date_to': None, 'market': None, 'tickers': ['하이트진로2우B'], 'metrics': ['저가'], 'rank_n': None, 'conditions': {}}
+Q: 하이트진로2우B의 2024-09-24 저가은?
+expected: 해당 날짜 저가 데이터 없음
+actual:   2024-09-24에 하이트진로2우B의 저가은(는) 16,090원 입니다.
+
+{'task': '단순조회', 'date': '2024-07-17', 'date_from': None, 'date_to': None, 'market': None, 'tickers': ['KG이니시스'], 'metrics': ['종가'], 'rank_n': None, 'conditions': {}}
+Q: KG이니시스의 2024-07-17 종가는?
+expected: 10,408원
+actual:   2024-07-17에 KG이니시스의 종가은(는) 10,980원 입니다.
+
+{'task': '단순조회', 'date': '2024-07-02', 'date_from': None, 'date_to': None, 'market': None, 'tickers': ['케이씨에스'], 'metrics': ['시가'], 'rank_n': None, 'conditions': {}}
+Q: 케이씨에스의 2024-07-02 시가은?
+expected: 6,536원
+actual:   2024-07-02에 케이씨에스의 시가은(는) 6,660원 입니다.
+
+{'task': '시장순위', 'date': '2024-09-12', 'date_from': None, 'date_to': None, 'market': 'KOSDAQ', 'tickers': [], 'metrics': ['가격'], 'rank_n': 1, 'conditions': {}}
+Q: 2024-09-12 KOSDAQ 시장에서 가장 비싼 종목은?
+expected: 알테오젠 (316,000원)
+actual:   2024-09-12에 KOSDAQ에서 가격이(가) 가장 높은 종목은 알테오젠 입니다.
+
+{'task': '시장순위', 'date': '2025-04-30', 'date_from': None, 'date_to': None, 'market': 'KOSDAQ', 'tickers': [], 'metrics': ['하락률'], 'rank_n': 5, 'conditions': {}}
+Q: 2025-04-30에서 KOSDAQ에서 하락률 높은 종목 5개는?
+expected: 엑스큐어, 대호특수강우, 삼륭물산, 아이스크림에듀, 브릿지바이오테라퓨틱스
+actual:   2025-04-30에 KOSDAQ에서 하락률 낮은 종목 상위 5개 종목은 다음과 같습니다.
+엑스큐어, 대호특수강우, 삼륭물산, 아이스크림에듀, 브릿지바이오테라퓨틱스
+
+{'task': '시장순위', 'date': '2025-05-08', 'date_from': None, 'date_to': None, 'market': 'KOSDAQ', 'tickers': [], 'metrics': ['거래량'], 'rank_n': 10, 'conditions': {}}
+Q: 2025-05-08에서 KOSDAQ에서 거래량 많은 종목 10개는?
+expected: 나우로보틱스, 메타바이오메드, 나무기술, 인성정보, 웹케시, 큐라티스, 고영, 포바이포, 오리엔트정공, 브릿지바이오테라퓨틱스
+actual:   2025-05-08에 KOSDAQ에서 거래량 낮은 종목 상위 10개 종목은 다음과 같습니다.
+나우로보틱스, 메타바이오메드, 나무기술, 인성정보, 웹케시, 큐라티스, 고영, 포바이포, 오리엔트정공, 브릿지바이오테라퓨틱스
+
+{'task': 'unknown'}

@@ -6,7 +6,7 @@ from pathlib import Path
 from app.router import route
 from app.session import new_id
 
-JSON_PATH = Path("tests/test_json/simple_queries.json")  # 경로 필요 시 조정
+JSON_PATH = Path("tests/test_json/conditional.json")  # 경로 필요 시 조정
 
 def is_follow_up(resp: str) -> bool:
     """
@@ -27,7 +27,7 @@ def main() -> None:
         cid  = new_id()
         q    = str(item["input_data"]["message"])
         exp  = str(item["expected_output"]).strip()
-        resp = route(q, cid).strip()
+        resp = route(q, cid, api_key="nv-7d2217209920476bac7b3691905e2462Q4VS").strip()
 
         if is_follow_up(resp):
             follow += 1

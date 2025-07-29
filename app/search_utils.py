@@ -53,8 +53,8 @@ def search_by_consecutive_change(df: pd.DataFrame, from_date: str, to_date: str,
             out.append(t)
     return out
 
-def search_cross_count_by_stock(name: str, from_date: str, to_date: str, cross: str) -> str:
-    g, d = count_crosses(from_date, to_date, name)
+def search_cross_count_by_stock(name: str, from_date: str, to_date: str, cross: str, api_key: str) -> str:
+    g, d = count_crosses(from_date, to_date, name, api_key)
     if cross == "golden":
         return f"{name}에서 {from_date}부터 {to_date}까지 골든크로스가 발생한 횟수는 {g}번입니다."
     elif cross == "dead":
@@ -150,7 +150,7 @@ def detect_volume_spike(df: pd.DataFrame, date: str, cond: dict, tickers: list[s
         if (ticker, "Adj Close") not in df.columns:
             continue
         vol = df[ticker, "Volume"].dropna()
-        if date not in vol:
+        if date not in vol or vol.loc[date] == 0:
             continue
         hist = vol.loc[:date]
         if len(hist) < window:
@@ -176,8 +176,14 @@ def detect_ma_break(df: pd.DataFrame, date: str, cond: dict, tickers: list[str])
         if (ticker, "Adj Close") not in df.columns:
             continue
         close = df[ticker, "Adj Close"].dropna()
-        if date not in close or len(close) < window:
+        volume = df[ticker, "Volume"].dropna()
+
+        if date not in close or date not in volume or len(close) < window:
             continue
+
+        if volume.loc[date] == 0:
+            continue
+
         ma = close.loc[:date].iloc[-window:].mean()
         price = close.loc[date]
         if ma == 0 or pd.isna(price):
@@ -198,8 +204,14 @@ def detect_bollinger_touch(df: pd.DataFrame, date: str, band: str, tickers: list
         if (ticker, "Adj Close") not in df.columns:
             continue
         close = df[ticker, "Adj Close"].dropna()
-        if date not in close or len(close) < window:
+        volume = df[ticker, "Volume"].dropna()
+
+        if date not in close or date not in volume or len(close) < window:
             continue
+
+        if volume.loc[date] == 0:
+            continue
+        
         hist = close.loc[:date]        
         if len(hist) < window:
             continue
@@ -215,8 +227,8 @@ def detect_bollinger_touch(df: pd.DataFrame, date: str, band: str, tickers: list
     return out
 
 # ───────────────────────────────────────────────
-def count_crosses(from_date: str, to_date: str, target: str) -> tuple[int, int]:
-    code = to_ticker(target)
+def count_crosses(from_date: str, to_date: str, target: str, api_key: str) -> tuple[int, int]:
+    code = to_ticker(target, api_key = api_key)
     if code is None:
         return -1, -1
     start = (pd.Timestamp(from_date) - pd.Timedelta(days=60)).strftime("%Y-%m-%d")

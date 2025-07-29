@@ -27,14 +27,14 @@ from app.search_utils import (
 from app.ticker_lookup import to_ticker
 import pandas as pd
 
-def handle(_: str, p: dict) -> str:
+def handle(_: str, p: dict, api_key: str) -> str:
     task = p.get("task")
     if task == "종목검색":
         return _handle_stock_search(p)
     elif task == "횟수검색":
-        return _handle_count_search(p)
+        return _handle_count_search(p, api_key)
     elif task == "날짜검색":
-        return _handle_date_search(p)
+        return _handle_date_search(p, api_key)
     else:
         return "[ERROR] 알 수 없는 task입니다."
 
@@ -162,23 +162,23 @@ def _handle_stock_search(p: dict) -> str:
         return "[ERROR] 날짜 정보가 없습니다."
 
 # ───────────────────────────── 횟수검색 ─────────────────────────────
-def _handle_count_search(p: dict) -> str:
+def _handle_count_search(p: dict, api_key: str) -> str:
     cond = p.get("conditions", {})
     date_from, date_to = p.get("date_from"), p.get("date_to")
     ticker_name = p.get("tickers", [None])[0]
-    ticker = to_ticker(ticker_name)
+    ticker = to_ticker(ticker_name, api_key = api_key)
 
     if "three_pattern" in cond:
         return three_pattern_counts(ticker, cond["three_pattern"], date_from, date_to)
 
-    return search_cross_count_by_stock(ticker_name, date_from, date_to, cond["cross"])
+    return search_cross_count_by_stock(ticker_name, date_from, date_to, cond["cross"], api_key)
 
 # ───────────────────────────── 날짜검색 ─────────────────────────────
-def _handle_date_search(p: dict) -> str:
+def _handle_date_search(p: dict, api_key: str) -> str:
     cond = p.get("conditions", {})
     date_from, date_to = p.get("date_from"), p.get("date_to")
     ticker_name = p.get("tickers", [None])[0]
-    ticker = to_ticker(ticker_name)
+    ticker = to_ticker(ticker_name, api_key = api_key)
 
     if "three_pattern" in cond:
         return three_pattern_dates(ticker, cond["three_pattern"], date_from, date_to)
