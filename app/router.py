@@ -1,8 +1,10 @@
 # app/router.py
 from __future__ import annotations
 import logging
+import datetime as dt
 from typing import Callable, Optional, Dict, Any
 from app import session                  # ↩︎ 간단한 in-mem 세션 캐시 (앞서 제안)
+from app.utils import _holiday_msg, _prev_bday
 from app.llm_bridge import extract_params, fill_missing
 from app.task_handlers import (
     task_search,
@@ -14,7 +16,37 @@ from config import AmbiguousTickerError
 logger = logging.getLogger(__name__)
 _FAIL = "질문을 이해하지 못했습니다."
 
+# ─────────────────────────────────────────────────────
+# 0. 보조 유틸  ← ★ 새로 추가
+# ─────────────────────────────────────────────────────
+def _most_recent_bday() -> str:
+    """
+    오늘이 영업일이면 오늘(YYYY-MM-DD),
+    아니면 직전 영업일을 반환
+    """
+    today = dt.date.today().isoformat()
+    return today if _holiday_msg(today) is None else _prev_bday(today)
 
+_recent_kw = ("최근", "요즘", "근래", "요새", "이즈음")
+_today_kw  = ("오늘", "금일", "당일", "오늘자")
+
+def _auto_fill_relative_dates(question: str, params: dict) -> None:
+    """
+    • date 와 date_to 가 모두 None 인 상태에서
+      - “최근*”류 키워드 → date = 최근 영업일
+      - “오늘*”류 키워드 → date = 최근 영업일
+    • date_from 값이 이미 있으면 date_to 에도 최근 영업일 세팅
+    """
+    if params.get("date") or params.get("date_to"):
+        return  # 이미 값이 있으면 건너뜀
+
+    q = question
+    if any(k in q for k in _recent_kw + _today_kw):
+        recent = _most_recent_bday()
+        params["date"] = recent
+        if params.get("date_from"):
+            params["date_to"] = recent
+# ─────────────────────────────────────────────────────
 
 # ──────────────────────────────────────────────
 # 1.  task 메타 정의  (추가 시 여기만 수정)
@@ -123,7 +155,7 @@ def _build_follow_up(missing: set[str]) -> str:
         "tickers": "조회할 종목명이 무엇인지",
         "rank_n":  "상위 몇 개 종목을 원하시는지",
         "conditions": "검색 조건(등락률·거래량 조건 등)이 무엇인지",
-        "market":  "KOSPI·KOSDAQ 중 어느 시장인지",                 # 지수 질문에 필요. 추후 확인 필요
+        "market":  "KOSPI·KOSDAQ 중 어느 시장인지",
         "conditions:volume_pct:min": "거래량 변화율의 최소값이 무엇인지",
         "conditions:volume:min_or_max": "거래량의 최소 또는 최대값이 무엇인지",
         "conditions:price_close:min_or_max": "종가의 최소 또는 최대값이 무엇인지",
@@ -157,8 +189,14 @@ def route(question: str, conv_id: str) -> str:
         if pending:
             follow = extract_params(question)
             for k, v in follow.items():
-                if v:
-                    pending[k] = v
+                if not v:
+                    continue
+                if k == "tickers":
+                    orig = pending.get("tickers", [])
+                    pending["tickers"] = list(dict.fromkeys(orig + v))
+                else:
+                    if pending.get(k) in (None, [], "", {}):
+                        pending[k] = v
 
             filled: dict[str, Any] = {}
             # 사용자가 보낸 follow-up 문장으로 슬롯 채우기
@@ -167,22 +205,29 @@ def route(question: str, conv_id: str) -> str:
                 # print(f"{slot}: {v}")
                 if v:
                     filled.update(v)
-                    
-            pending.update(filled)
+                for key, val in filled.items():
+                    if key == "tickers":
+                        orig = pending.get("tickers",[])
+                        pending["tickers"] = list(dict.fromkeys(orig + val))
+                    else:
+                        pending[key] = val
             print(f"updated: {pending}")
+            _auto_fill_relative_dates(question, pending)
             still_missing = _missing_fields(pending["task"], pending)
 
             if still_missing:                               # 여전히 비어 있음
                 session.set(conv_id, pending)
                 return _build_follow_up(still_missing)
 
-            # 모든 슬롯 충족 → 실행
-            session.clear(conv_id)
             hinfo = TASK_REGISTRY[pending["task"]]
-            return _safe_handle(hinfo["fn"], question, pending) or _FAIL
+            answer = _safe_handle(hinfo["fn"], question, pending) or _FAIL
+            if answer != _FAIL:
+                session.clear(conv_id)
+            return answer
 
         # ── 2) 최초 질문 파싱
         params = extract_params(question)
+        _auto_fill_relative_dates(question, params)
         print(params)
         task   = params.get("task")
 
@@ -199,9 +244,14 @@ def route(question: str, conv_id: str) -> str:
         hinfo = TASK_REGISTRY[task]
         return _safe_handle(hinfo["fn"], question, params) or _FAIL
     except AmbiguousTickerError as e:
-        if 'params' in locals() and params:           # 첫 질문의 params
+        cur = session.get(conv_id)
+        if cur:
+            cur["tickers"] = [t for t in cur.get("tickers", []) if t != e.alias]
+            session.set(conv_id, cur)
+        elif 'params' in locals() and params:           # 첫 질문의 params
             pending = params.copy()
-            pending['tickers'] = []                  # ← 후속 답변 채울 자리
+            keep = [t for t in pending.get("tickers", []) if t != e.alias]
+            pending['tickers'] = keep                  # ← 후속 답변 채울 자리
             session.set(conv_id, pending)
 
         sugg = " · ".join(e.candidates)
@@ -210,66 +260,3 @@ def route(question: str, conv_id: str) -> str:
             f"예시: {sugg}"
         )
 
-
-# def route(question: str, conv_id: str) -> str:
-#     question = question.strip()
-#     if not question:
-#         return _FAIL
-    
-#     # 1️⃣ Task 1 – 단순 조회(가격·통계·순위 등)
-#     # if (ans := _safe_handle(task1_simple.handle, question)):
-#     #     return ans
-
-#     # # 3️⃣ Task 2 – 조건검색
-#     # if (ans := _safe_handle(task2_condition.handle, question)):
-#     #     return ans
-
-#     # # 4️⃣ Task 3 – 시그널 감지
-#     # if (ans := _safe_handle(task3_signal.handle, question)):
-#     #     return ans
-    
-#     # # 2️⃣ Task 4 – 모호 질의(최근 급등주, 고점 대비 낙폭 등)
-#     # if parse_ambiguous(question):
-#     #     return task4_ambiguous.handle(question)
-
-#     # HCX → task 결정
-    
-#     # ────────────────── 1) 세션에 pending params 있는지 확인 ──────────────────
-#     pending = session.get(conv_id)
-#     if pending:
-#         # 후속 답변으로 누락 부분 보완
-#         follow_params = extract_params(question)
-#         pending.update({k: v for k, v in follow_params.items() if v})
-#         missing = _check_missing(pending)
-#         if missing:                          # 여전히 부족 → 다시 질문
-#             session.set(conv_id, pending)
-#             return _build_follow_up(missing)
-#         else:
-#             session.clear(conv_id)           # 모두 채워졌으면 세션 종료
-#             return _handle_task1(question, pending)  # ← 아래 함수
-    
-#     # ────────────────── 2) 최초 질문 처리 ──────────────────
-#     params = extract_params(question)
-#     missing = _check_missing(params)
-#     if missing:
-#         session.set(conv_id, params)         # 세션에 저장
-#         return _build_follow_up(missing)
-
-#     return _handle_task1(question, params)
-
-#     if missing:
-#         return _build_follow_up(missing)
-    
-#     task = params.get("task")
-#     if task in ("단순조회","상승종목수","하락종목수","거래종목수","시장순위"):
-#         if (ans := _safe_handle(task1_simple.handle, question)):
-#             return ans
-    
-#     # elif task in ("conditional",):
-#     #     if (ans := _safe_handle(task2_condition.handle, question)):
-#     #         return ans
-#     # elif task in ("signal",):
-#     #     if (ans := _safe_handle(task3_signal.handle, question)):
-#     #         return ans
-    
-#     return _FAIL

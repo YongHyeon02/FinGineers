@@ -13,6 +13,9 @@
 Q: 동부건설우의 2024-11-06 시가은?
 → {"task":"단순조회","date":"2024-11-06","date_from":null,"date_to":null,"market":null,"tickers":["동부건설우"],"metrics":["시가"],"rank_n":null,"conditions":{}}
 
+Q: 2024-11-06 삼성전자, 카카오, NAVER의 종가, 시가, 거래량, 변동성은?
+→ {"task":"단순조회","date":"2024-11-06","date_from":null,"date_to":null,"market":null,"tickers":["삼성전자","카카오","NAVER"],"metrics":["종가","시가","거래량","변동성"],"rank_n":null,"conditions":{}}
+
 Q: 2025-06-23에 상승한 종목은 몇 개인가?
 → {"task":"상승종목수","date":"2025-06-23","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":[],"rank_n":null,"conditions":{}}
 
@@ -131,16 +134,16 @@ Q: 2025-07-15에 시가가 전일 종가 대비 5% 이하 갭하락한 종목 �
 → {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"gap_pct":{"min":-5,"max":0}}}
 
 Q: 2025-06-13에 10% 이상 갭하락한 종목 알려줘
-→ {"task":"종목검색","date":"2025-06-13","conditions":{"gap_pct":{"max":-10}}}
+→ {"task":"종목검색","date":"2025-06-13","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"gap_pct":{"max":-10}}}
 
 Q: 2025-06-13에 10% 이하 갭하락한 종목 알려줘
-→ {"task":"종목검색","date":"2025-06-13","conditions":{"gap_pct":{"min":-10,"max":0}}}
+→ {"task":"종목검색","date":"2025-06-13","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"gap_pct":{"min":-10,"max":0}}}
 
 Q: 2025-06-13에 10% 이상 갭상승한 종목 알려줘
-→ {"task":"종목검색","date":"2025-06-13","conditions":{"gap_pct":{"min":10}}}
+→ {"task":"종목검색","date":"2025-06-13","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"gap_pct":{"min":10}}}
 
 Q: 2025-06-13에 10% 이하 갭상승한 종목 알려줘
-→ {"task":"종목검색","date":"2025-06-13","conditions":{"gap_pct":{"min":0,"max":10}}}
+→ {"task":"종목검색","date":"2025-06-13","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"gap_pct":{"min":0,"max":10}}}
 
 Q: 2025-07-15 상한가 종목 알려줘
 → {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"pct_change":{"min":30}}}
@@ -199,13 +202,13 @@ Q: 2025-05-10 베타가 가장 낮은 종목 Top 5 알려줘
 Q: 2025-05-10 KOSPI 변동성이 가장 높은 10개 종목은?
 → {"task":"시장순위","date":"2025-05-10","date_from":null,"date_to":null,"market":"KOSPI","tickers":[],"metrics":["변동성"],"rank_n":10,"conditions":{"order":"high"}}
 
-Q: 2025-05-10 베타가 가장 높은 종목 Top 5 알려줘
+Q: 2025-05-10 베타계수가 가장 높은 종목 Top 5 알려줘
 → {"task":"시장순위","date":"2025-05-10","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":["베타"],"rank_n":5,"conditions":{"order":"high"}}
 
 Q: 2025-05-10 삼성전자 변동성 알려줘
 → {"task":"단순조회","date":"2025-05-10","date_from":null,"date_to":null,"market":null,"tickers":["삼성전자"],"metrics":["변동성"],"rank_n":null,"conditions":{}}
 
-Q: 2025-05-10 삼성전자, NAVER, 카카오 변동성·베타 알려줘
+Q: 2025-05-10 삼성전자, NAVER, 카카오 변동성·beta 알려줘
 → {"task":"단순조회","date":"2025-05-10","date_from":null,"date_to":null,"market":null,"tickers":["삼성전자","NAVER","카카오"],"metrics":["변동성","베타"],"rank_n":null,"conditions":{}}
 
 Q. 2025-06-17 변동성이 가장 높은 종목 top 10은?

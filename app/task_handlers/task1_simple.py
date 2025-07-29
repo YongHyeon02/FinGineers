@@ -12,13 +12,15 @@ import pandas as pd
 import yfinance as yf
 import numpy as np
 
-from app.ticker_lookup import to_ticker, TickerInfo
+from app.ticker_lookup import to_ticker, TickerInfo, disambiguate_ticker_hcx
 from app.data_fetcher import get_price_on_date, get_volume_top, _download, _slice_single
 from app.universe import (
     KOSPI_TICKERS, KOSDAQ_TICKERS, GLOBAL_TICKERS,
     NAME_BY_TICKER, KOSPI_MAP, KOSDAQ_MAP,
 )
 from app.utils import _is_zero_volume, _holiday_msg, _universe, _prev_bday, _next_day, _find_prev_close, _nth_prev_bday
+from config import AmbiguousTickerError
+
 
 # ──────────────────────────────
 FIELD_MAP = {"종가": "Close", "시가": "Open", "고가": "High", "저가": "Low", "등락률": "%Change"}
@@ -28,6 +30,86 @@ TICK2NAME: Dict[str, str] = {v: k for k, v in {**KOSPI_MAP, **KOSDAQ_MAP}.items(
 
 
 # ─────────────────────────── 1. 가격/등락률 ───────────────────────────
+# ─────────────────────────── NEW: 범용 다중-조회 ───────────────────────────
+_FIELD_KO = {"종가": "Close", "시가": "Open", "고가": "High",
+             "저가": "Low",   "거래량": "Volume"}      # 등락률·변동성·베타는 계산식
+
+def _fmt(val, kind):
+    if val is None:
+        return "데이터 없음"
+    if kind == "거래량":
+        return f"{int(val):,}주"
+    if kind in {"변동성", "베타"}:
+        return f"{val:.3f}" if kind == "변동성" else f"{val:.2f}"
+    if kind == "등락률":
+        return f"{val:+.2f}%"
+    return f"{val:,.0f}원"
+
+def _answer_multi(params: dict) -> str:
+    date     = params["date"]
+    metrics  = params["metrics"]
+    aliases  = params["tickers"]
+    market   = params.get("market")
+
+    results = []
+
+    for alias in aliases:
+        try:
+            info = to_ticker(alias, with_name=True)
+        except AmbiguousTickerError as e:
+            raise
+        except Exception:                                    # 완전 미인식
+            cands = disambiguate_ticker_hcx(alias)[:6]
+            raise AmbiguousTickerError(alias, cands)
+
+        tic, name = info.ticker, info.name
+        parts = []
+
+        # ① 가격·거래량 류 ───────────────────────────
+        for m in metrics:
+            if m in _FIELD_KO:
+                field = _FIELD_KO[m]
+                try:
+                    val = get_price_on_date(tic, date, field)
+                    vol = get_price_on_date(tic, date, "Volume")
+                    if field == "Volume":   # 거래량은 ‘0’ 차단 필요 없음
+                        ok = val not in (None, 0)
+                    else:                   # 가격·시가 등은 거래정지 체크
+                        ok = (val not in (None, 0)) and (vol not in (None, 0))
+                except Exception:
+                    ok = False
+                parts.append(f"{m} {_fmt(val if ok else None, m)}")
+
+        # ② 등락률 ────────────────────────────
+        if "등락률" in metrics:
+            try:
+                p_today = get_price_on_date(tic, date, "Close")
+                _, p_prev = _find_prev_close(tic, date)
+                pct = (p_today - p_prev) / p_prev * 100 if p_prev else None
+            except Exception:
+                pct = None
+            parts.append(f"등락률 {_fmt(pct, '등락률')}")
+
+        # ③ 변동성 / 베타 ───────────────────────
+        if "변동성" in metrics:
+            v = _calc_volatility(tic, date)
+            parts.append(f"변동성 {_fmt(v, '변동성')}")
+        if "베타" in metrics:
+            b = _calc_beta(tic, date, market)
+            parts.append(f"베타 {_fmt(b, '베타')}")
+
+        results.append(f"{name}: " + ", ".join(parts) if parts else f"{name}: 데이터 없음")
+    
+    # ── 출력 형식(기존 변동성·베타 함수와 동일) ─────────────────────────
+    if len(results) == 1:
+        line = results[0]
+        if ":" in line:
+            name, vals = map(str.strip, line.split(":", 1))
+            return f"{date}에 {name}의 {vals} 입니다."
+        return f"{date}에 {line}"
+    bullet = "\n".join(f"- {r}" for r in results)
+    return f"{date} 기준 종목별 지표는 다음과 같습니다.\n{bullet}"
+
 def _answer_price(params: dict) -> str:
     raw_name   = params["tickers"][0]
     date   = params["date"]
@@ -267,9 +349,21 @@ def _volatility_all(date: str, tickers: list[str], lookback=60) -> dict[str, flo
     df = _batch_ohlcv(tickers, start, date)
     if df.empty:
         return {}
-    closes = df.xs("Adj Close", level=1, axis=1).dropna(how="all")
-    pct = closes.pct_change().dropna()
-    vol = pct.rolling(lookback).std().iloc[-1] * math.sqrt(252)
+    # Adj Close 열이 하나도 없을 수도 있으므로 예외 처리
+    try:
+        closes = df.xs("Adj Close", level=1, axis=1).dropna(how="all")
+    except KeyError:
+        return {}
+
+    pct = closes.pct_change().dropna(how="all")
+    if pct.empty or len(pct) < lookback:
+        return {}
+
+    std = pct.rolling(lookback).std()
+    if std.empty:           # window 부족 → 변동성 계산 불가
+        return {}
+
+    vol = std.iloc[-1] * math.sqrt(252)
     return vol.dropna().to_dict()
 
 def _beta_all(date: str,
@@ -289,9 +383,13 @@ def _beta_all(date: str,
     if df.empty:
         return {}
 
-    closes = df.xs("Adj Close", level=1, axis=1).dropna(how="all")
-    rets   = closes.pct_change().dropna()
-
+    try:
+        closes = df.xs("Adj Close", level=1, axis=1).dropna(how="all")
+    except KeyError:
+        return {}
+    rets = closes.pct_change().dropna(how="all")
+    if rets.empty:
+        return {}
     ks_ret = rets.get("^KS11")
     kq_ret = rets.get("^KQ11")
     betas: dict[str, float] = {}
@@ -377,18 +475,20 @@ def handle(_: str, p: dict) -> str:
     여기선 params 만 쓰면 된다.
     """
     task = p["task"]
-
+    msg = _holiday_msg(p["date"])
+    if msg:
+        return msg
     # 1) 단순가격/지수/거래대금
     if task == "단순조회":
         metric = p["metrics"][0]
         metric_set = set(p["metrics"])
-        if metric_set <= {"종가","시가","고가","저가","등락률"}:
-            return _answer_price(p)
-        if metric_set & {"변동성","베타"}:
-            if not p["tickers"]:
-                return "종목명 지정이 필요합니다."
-            return _answer_risk_single(p["date"], p["tickers"], p["metrics"], p.get("market"))
-        
+        if metric_set <= {"종가","시가","고가","저가","등락률","거래량","변동성","베타"}:
+            if len(p["tickers"]) > 1 or len(metric_set) > 1:
+                return _answer_multi(p)
+            if metric_set & {"변동성", "베타"}:
+                return _answer_risk_single(p["date"], p["tickers"], p["metrics"], p.get("market"))
+            if metric_set <= {"종가","시가","고가","저가","등락률","거래량"}:
+                return _answer_price(p)
         if metric == "지수":
             mkt = p.get("market")
             if mkt == "KOSPI":
@@ -402,9 +502,6 @@ def handle(_: str, p: dict) -> str:
 
     # 2) 종목 수
     if task in ("상승종목수", "하락종목수", "거래종목수"):
-        msg = _holiday_msg(p["date"])
-        if msg:
-            return msg
         market = p.get("market")
         market_txt = f"{market}에서 " if market else ""
         if task == "상승종목수":
@@ -419,9 +516,6 @@ def handle(_: str, p: dict) -> str:
 
     # 3) 시장순위
     if task == "시장순위":
-        msg = _holiday_msg(p["date"])
-        if msg:
-            return msg
         metric = p["metrics"][0]            # 거래량·상승률·하락률·가격
         n      = p.get("rank_n") or 1
         market = p.get("market")
