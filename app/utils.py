@@ -103,3 +103,9 @@ def _prev_bday(date: str, lookback_days: int = 20) -> str:
 # 다음날 계산
 def _next_day(date: str) -> str:
     return (pd.Timestamp(date) + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+
+def _nth_prev_bday(date: str, n: int) -> str:
+    """주어진 날짜 기준 n 영업일 전(한국 거래일) 문자열 'YYYY-MM-DD' 반환"""
+    for _ in range(n):
+        date = _prev_bday(date)
+    return date

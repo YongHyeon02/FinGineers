@@ -19,3 +19,4 @@ pandas_market_calendars
 rapidfuzz
 sentence-transformers
 faiss-cpu
+fastapi

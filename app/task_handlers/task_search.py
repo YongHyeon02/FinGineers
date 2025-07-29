@@ -1,5 +1,5 @@
 from __future__ import annotations
-from app.utils import _universe
+from app.utils import _universe, _holiday_msg
 from app.data_fetcher import _download, _next_day
 from app.ticker_lookup import to_ticker
 from app.universe import NAME_BY_TICKER
@@ -19,6 +19,10 @@ from app.search_utils import (
     three_pattern_tickers,
     three_pattern_counts,
     three_pattern_dates,
+    detect_52w_high_break,
+    detect_52w_low,
+    detect_off_peak,
+    search_by_gap_pct,
 )
 from app.ticker_lookup import to_ticker
 import pandas as pd
@@ -55,6 +59,8 @@ def _handle_stock_search(p: dict) -> str:
 
     # ───────────────────── 단일일 조건 처리 ─────────────────────
     if date:
+        if msg := _holiday_msg(date):
+            return msg
         def _need_history_depth(cond: dict) -> int:
             days = 0
             if "pct_change" in cond or "volume_pct" in cond:
@@ -67,6 +73,14 @@ def _handle_stock_search(p: dict) -> str:
                 days = max(days, cond["moving_avg"].get("window", 20))
             if "bollinger_touch" in cond:
                 days = max(days, 20)
+            if "peak_break" in cond or "peak_low" in cond or "off_peak" in cond:
+                days = max(days, cond.get("peak_break", {}).get("period_days",
+                                 cond.get("peak_low", {}).get("period_days",
+                                 cond.get("off_peak", {}).get("period_days", 260))))
+            if "gap_pct" in cond:
+                days = max(days, 2)
+            if "net_buy" in cond:
+                days = max(days, 2)
             return days * 2
 
         depth = _need_history_depth(cond)
@@ -97,6 +111,18 @@ def _handle_stock_search(p: dict) -> str:
             result = detect_ma_break(df, date, cond["moving_avg"], result)
         if "bollinger_touch" in cond:
             result = detect_bollinger_touch(df, date, cond["bollinger_touch"], result)
+        if "peak_break" in cond:
+            period = cond["peak_break"].get("period_days", 260)
+            result = detect_52w_high_break(df, date, period, result)
+        if "peak_low" in cond:
+            period = cond["peak_low"].get("period_days", 260)
+            result = detect_52w_low(df, date, period, result)   
+        if "off_peak" in cond:
+            period = cond["off_peak"].get("period_days", 260)
+            drop  = cond["off_peak"].get("min", 30)
+            result = detect_off_peak(df, date, period, drop, result)
+        if "gap_pct" in cond:
+            result = search_by_gap_pct(df, date, cond["gap_pct"], result)
 
         if not result:
             return "조건에 맞는 종목이 없습니다."

@@ -6,10 +6,11 @@ from __future__ import annotations
 
 import re, math, datetime as dt
 from functools import lru_cache
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Iterable
 
 import pandas as pd
 import yfinance as yf
+import numpy as np
 
 from app.ticker_lookup import to_ticker, TickerInfo
 from app.data_fetcher import get_price_on_date, get_volume_top, _download, _slice_single
@@ -17,7 +18,7 @@ from app.universe import (
     KOSPI_TICKERS, KOSDAQ_TICKERS, GLOBAL_TICKERS,
     NAME_BY_TICKER, KOSPI_MAP, KOSDAQ_MAP,
 )
-from app.utils import _is_zero_volume, _holiday_msg, _BDAY, _universe, _prev_bday, _next_day, _find_prev_close
+from app.utils import _is_zero_volume, _holiday_msg, _universe, _prev_bday, _next_day, _find_prev_close, _nth_prev_bday
 
 # ──────────────────────────────
 FIELD_MAP = {"종가": "Close", "시가": "Open", "고가": "High", "저가": "Low", "등락률": "%Change"}
@@ -210,8 +211,163 @@ def _answer_top_price(date: str, market: str|None, n: int) -> str:
     top = sorted(closes.items(), key=lambda x: x[1], reverse=True)[:n]
     return ", ".join(TICK2NAME.get(t, t) for t, _ in top)
 
+def _batch_ohlcv(tickers: list[str], start: str, end: str) -> pd.DataFrame:
+    return _download(tuple(tickers), start=start, end=end, interval="1d")
+
+def _calc_volatility(ticker: str, date: str, lookback: int = 60) -> float | None:
+    """
+    • 60 거래일 일간 수익률 표준편차 × √252
+    • 캐싱은 _download() ↔ yf_cache 로컬파일 단계에서 이미 수행
+    """
+    start = _nth_prev_bday(date, lookback + 10)
+    df = _download((ticker,), start=start, end=date, interval="1d")
+    if df.empty or (ticker, "Adj Close") not in df.columns:
+        return None
+    close = df[ticker, "Adj Close"].dropna()
+    if date not in close.index or len(close) < lookback:
+        return None
+    window = close.loc[:date].iloc[-lookback:]
+    return window.pct_change().dropna().std() * math.sqrt(252)
+
+def _calc_beta(ticker: str,
+               date: str,
+               market_hint: str | None = None,
+               lookback: int = 60) -> float | None:
+    """
+    • market_hint == "KOSPI"/"KOSDAQ" 이면 강제 사용  
+    • None 이면 티커 접미사(.KS/.KQ)로 시장 판단  
+    """
+    if market_hint == "KOSPI" or (market_hint is None and ticker.endswith(".KS")):
+        idx_tic = "^KS11"
+    elif market_hint == "KOSDAQ" or (market_hint is None and ticker.endswith(".KQ")):
+        idx_tic = "^KQ11"
+    else:                         # 알 수 없으면 KOSPI 기준 fallback
+        idx_tic = "^KS11"
+
+    start = _nth_prev_bday(date, lookback + 10)
+    df = _download((ticker, idx_tic), start=start, end=date, interval="1d")
+    try:
+        p  = df[ticker , "Adj Close"].dropna()
+        m  = df[idx_tic, "Adj Close"].dropna()
+    except KeyError:
+        return None
+    if date not in p.index or len(p) < lookback or len(m) < lookback:
+        return None
+
+    joined = pd.concat([p, m], axis=1, join="inner").iloc[-lookback:]
+    if joined.shape[0] < lookback or joined.iloc[:, 1].var() == 0:
+        return None
+    cov  = np.cov(joined.iloc[:, 0], joined.iloc[:, 1])[0, 1]
+    beta = cov / joined.iloc[:, 1].var()
+    return None if math.isinf(beta) or math.isnan(beta) else beta
+
+# ② 벡터화 변동성
+def _volatility_all(date: str, tickers: list[str], lookback=60) -> dict[str, float]:
+    start = _nth_prev_bday(date, lookback + 10)
+    df = _batch_ohlcv(tickers, start, date)
+    if df.empty:
+        return {}
+    closes = df.xs("Adj Close", level=1, axis=1).dropna(how="all")
+    pct = closes.pct_change().dropna()
+    vol = pct.rolling(lookback).std().iloc[-1] * math.sqrt(252)
+    return vol.dropna().to_dict()
+
+def _beta_all(date: str,
+              tickers: list[str],
+              market_hint: str | None,
+              lookback: int = 60) -> dict[str, float]:
+    """
+    • market_hint == "KOSPI"  → 전체 티커를 ^KS11 기준으로 계산  
+    • market_hint == "KOSDAQ" → 전체 티커를 ^KQ11 기준으로 계산  
+    • None → 각 티커 접미사(.KS/.KQ)에 따라 자동 매핑
+    """
+    idx_map = {"KOSPI": "^KS11", "KOSDAQ": "^KQ11"}
+    start   = _nth_prev_bday(date, lookback + 10)
+
+    # ── 두 지수 + 모든 티커를 한 번에 다운로드
+    df = _download(tuple(tickers) + ("^KS11", "^KQ11"), start=start, end=date, interval="1d")
+    if df.empty:
+        return {}
+
+    closes = df.xs("Adj Close", level=1, axis=1).dropna(how="all")
+    rets   = closes.pct_change().dropna()
+
+    ks_ret = rets.get("^KS11")
+    kq_ret = rets.get("^KQ11")
+    betas: dict[str, float] = {}
+
+    for t in tickers:
+        if t not in rets.columns:
+            continue
+        tic_ret = rets[t].dropna()
+        # ── 지수 선택
+        if market_hint == "KOSPI":
+            idx_ret = ks_ret
+        elif market_hint == "KOSDAQ":
+            idx_ret = kq_ret
+        else:  # auto
+            idx_ret = kq_ret if t.endswith(".KQ") else ks_ret
+
+        if idx_ret is None:
+            continue
+        joined = pd.concat([tic_ret, idx_ret], axis=1, join="inner").iloc[-lookback:]
+        if joined.shape[0] < lookback or joined.iloc[:, 1].var() == 0:
+            continue
+        cov  = np.cov(joined.iloc[:, 0], joined.iloc[:, 1])[0, 1]
+        beta = cov / joined.iloc[:, 1].var()
+        if not math.isinf(beta) and not math.isnan(beta):
+            betas[t] = beta
+
+    return betas
+    
+def _answer_volatility_rank(date, market, n, order="low"):
+    tk = _universe(market)
+    vol = _volatility_all(date, tk)
+    ranked = sorted(vol.items(), key=lambda x: x[1], reverse=(order=="high"))[:n]
+    return ", ".join(TICK2NAME.get(t, t) for t, _ in ranked)
+
+def _answer_beta_rank(date, market, n, order="low"):
+    tk = _universe(market)
+    bet = _beta_all(date, tk, market)
+    ranked = sorted(bet.items(), key=lambda x: x[1], reverse=(order=="high"))[:n]
+    return ", ".join(TICK2NAME.get(t, t) for t, _ in ranked)
 
 
+def _answer_risk_single(date: str, tickers: Iterable[str], metrics: Iterable[str],
+                        market: str | None) -> str:
+    results = []
+    for raw in tickers:
+        try:
+            info = to_ticker(raw, with_name=True)          # 한글명 → 코드
+        except Exception:
+            results.append(f"{raw}: 티커 인식 실패")
+            continue
+
+        tic, name = info.ticker, info.name
+        parts: list[str] = []
+        if "변동성" in metrics:
+            v = _calc_volatility(tic, date)
+            if v is not None:
+                parts.append(f"변동성 {v:.3f}")
+        if "베타" in metrics:
+            b = _calc_beta(tic, date, market)
+            if b is not None:
+                parts.append(f"베타 {b:.2f}")
+
+        results.append(
+            f"{name}: " + ", ".join(parts) if parts else f"{name}: 데이터 없음"
+        )
+
+    # ── 문장 형식 맞추기 ─────────────────────────────
+    if len(results) == 1:
+        line = results[0]
+        if ":" in line:
+            name, vals = map(str.strip, line.split(":", 1))
+            return f"{date}에 {name}의 {vals} 입니다."
+        return f"{date}에 {line}"
+    else:
+        bullet = "\n".join(f"- {r}" for r in results)
+        return f"{date} 기준 종목별 지표는 다음과 같습니다.\n{bullet}"
 
 # ─────────────────────────── 메인 엔트리 ───────────────────────────
 def handle(_: str, p: dict) -> str:
@@ -225,8 +381,14 @@ def handle(_: str, p: dict) -> str:
     # 1) 단순가격/지수/거래대금
     if task == "단순조회":
         metric = p["metrics"][0]
-        if metric in {"종가","시가","고가","저가","등락률"}:
+        metric_set = set(p["metrics"])
+        if metric_set <= {"종가","시가","고가","저가","등락률"}:
             return _answer_price(p)
+        if metric_set & {"변동성","베타"}:
+            if not p["tickers"]:
+                return "종목명 지정이 필요합니다."
+            return _answer_risk_single(p["date"], p["tickers"], p["metrics"], p.get("market"))
+        
         if metric == "지수":
             mkt = p.get("market")
             if mkt == "KOSPI":
@@ -264,6 +426,8 @@ def handle(_: str, p: dict) -> str:
         n      = p.get("rank_n") or 1
         market = p.get("market")
         market_txt = f"{market}에서 " if market else ""
+        order  = (p.get("conditions") or {}).get("order", "low")
+        order_txt = f" 높은 종목" if order == "high" else " 낮은 종목"
 
         if metric == "거래량":
             names = _answer_volume_top(p["date"], market, n)
@@ -271,15 +435,22 @@ def handle(_: str, p: dict) -> str:
             names = _answer_top_mover(p["date"], market, metric, n)
         elif metric == "가격":
             names = _answer_top_price(p["date"], market, n)
+        elif metric == "변동성":
+            names = _answer_volatility_rank(p["date"], market, n, order)
+        elif metric == "베타":
+            names = _answer_beta_rank(p["date"], market, n, order)
+
         else:
             return f"지원하지 않는 지표입니다."
 
         if "데이터 없음" in names:
             return f"{p['date']}에 데이터가 없습니다."
         if n == 1:
+            if metric in {"변동성", "베타"}:
+                return f"{p['date']}에 {market_txt}{metric}이(가) 가장{order_txt}은 {names} 입니다."
             return f"{p['date']}에 {market_txt}{metric}이(가) 가장 높은 종목은 {names} 입니다."
         return (
-            f"{p['date']}에 {market_txt}{metric} 상위 {n}개 종목은 다음과 같습니다.\n"
+            f"{p['date']}에 {market_txt}{metric}{order_txt} 상위 {n}개 종목은 다음과 같습니다.\n"
             f"{names}"
         )
 

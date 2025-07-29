@@ -4,7 +4,7 @@
 1) 필드 순서: {task,date,date_from,date_to,market,tickers,metrics,rank_n,conditions}
 2) {task,date,date_from,date_to,market,tickers,metrics,rank_n,conditions} 이 9개 key 이외의 항목은 절대 포함하지 마라.
 3) task ∈ {"단순조회","상승종목수","하락종목수","거래종목수","시장순위","종목검색","횟수검색","날짜검색"} 외의 값은 허용되지 않는다.  
-4) metrics ∈ {"종가","시가","고가","저가","등락률","거래량","지수","거래대금","상승률","하락률","가격"} 외의 값은 허용되지 않는다.  
+4) metrics ∈ {"종가","시가","고가","저가","등락률","거래량","지수","거래대금","상승률","하락률","가격","변동성","베타"} 외의 값은 허용되지 않는다.  
 6) conditions ∈ {"price_close","volume","pct_change","volume_pct","RSI","volume_spike","moving_avg","bollinger_touch","pct_change_range","consecutive_change","cross","three_pattern"} 외의 값은 허용되지 않는다.
 6) "코스피"/"KOSPI"가 질문에 포함되면 "market":"KOSPI", "코스닥"/"KOSDAQ"이 포함되면 "market":"KOSDAQ", 없으면 null로 설정한다.  
 7) 코드블록이나 줄바꿈 없이 한 줄 JSON으로 출력할 것.
@@ -96,3 +96,117 @@ Q: 7월 14일부터 7월 22일까지 삼성전자는 흑삼병이 몇 번 발생
 
 Q: 7월 14일부터 7월 22일까지 삼성전자가 흑삼병이 발생한 날짜 알려줘
 → {"task":"날짜검색","date":null,"date_from":"2025-07-14","date_to":"2025-07-22","market":null,"tickers":["삼성전자"],"metrics":null,"rank_n":null,"conditions":{"three_pattern":"흑삼병"}}
+
+Q: 2025-07-15에 52주 신고가 돌파한 종목 알려줘
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"peak_break":{"period_days":260}}}
+
+Q: 2025-07-15에 고점 대비 30% 이상 빠진 종목 보여줘
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"off_peak":{"period_days":260,"min":30}}}
+
+Q: 2025-07-15에 최근 6개월 기준 52주 신고가를 넘어선 종목 알려줘
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"peak_break":{"period_days":130}}}
+
+Q: 2025-07-15에 지난 100일 고점 대비 25% 이상 하락한 KOSPI 종목 알려줘
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":KOSPI","tickers":[],"metrics":null,"rank_n":null,"conditions":{"off_peak":{"period_days":100,"min":25}}}
+
+Q: 2025-07-15에 최근 90일 최저가(신저가) 찍은 코스닥 종목은?
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":"KOSDAQ","tickers":[],"metrics":null,"rank_n":null,"conditions":{"peak_low":{"period_days":90}}}
+
+Q: 2025-07-15에 올해 고점 대비 40% 빠진 종목 다 보여줘
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":KOSPI,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"off_peak":{"period_days":260,"min":40}}}
+
+Q: 2025-07-15에 시가가 전일 종가 대비 5% 이상 갭상승한 종목 알려줘
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"gap_pct":{"min":5}}}
+
+Q: 2025-07-15에 시가가 전일 종가 대비 -5% 이하 갭하락한 종목 알려줘
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"gap_pct":{"max":-5}}}
+
+Q: 2025-07-15에 5% 이하 갭상승한 종목 알려줘
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"gap_pct":{"min":0,"max":5}}}
+
+Q: 2025-07-15에 5% 이상 갭하락한 종목 알려줘
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"gap_pct":{"max":-5}}}
+
+Q: 2025-07-15에 시가가 전일 종가 대비 5% 이하 갭하락한 종목 알려줘
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"gap_pct":{"min":-5,"max":0}}}
+
+Q: 2025-06-13에 10% 이상 갭하락한 종목 알려줘
+→ {"task":"종목검색","date":"2025-06-13","conditions":{"gap_pct":{"max":-10}}}
+
+Q: 2025-06-13에 10% 이하 갭하락한 종목 알려줘
+→ {"task":"종목검색","date":"2025-06-13","conditions":{"gap_pct":{"min":-10,"max":0}}}
+
+Q: 2025-06-13에 10% 이상 갭상승한 종목 알려줘
+→ {"task":"종목검색","date":"2025-06-13","conditions":{"gap_pct":{"min":10}}}
+
+Q: 2025-06-13에 10% 이하 갭상승한 종목 알려줘
+→ {"task":"종목검색","date":"2025-06-13","conditions":{"gap_pct":{"min":0,"max":10}}}
+
+Q: 2025-07-15 상한가 종목 알려줘
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"pct_change":{"min":30}}}
+
+Q: 2025-07-15 하한가 종목 알려줘
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"pct_change":{"max":-30}}}
+
+Q: 2025-07-15 상한가 근접 종목 보여줘
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"pct_change":{"min":25}}}
+
+Q: 2025-07-15 하한가에 급접한 종목 알려줘
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"pct_change":{"max":-25}}}
+
+Q: 2025-07-15 거의 상한가인 종목은?
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"pct_change":{"min":25}}}
+
+Q: 2025-07-15 거의 하한가인 종목 알려줘
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"pct_change":{"max":-25}}}
+
+Q: 2025-07-15 급등주 알려줘
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"pct_change":{"min":15}}}
+
+Q: 2025-07-15 급락주 알려줘
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"pct_change":{"max":-15}}}
+
+Q: 2025-07-15에 급등한 종목 알려줘
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"pct_change":{"min":15}}}
+
+Q: 2025-07-15에 급락한 종목 알려줘
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"pct_change":{"max":-15}}}
+
+Q: 2025-07-15 떡상한 종목 보여줘
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"pct_change":{"min":15}}}
+
+Q: 2025-07-15 떡락한 종목 보여줘
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"pct_change":{"max":-15}}}
+
+Q: 2025-07-15 대박난 주식은?
+→ {"task":"종목검색","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"pct_change":{"min":20}}}
+
+Q: 2025-07-15 급등률 상위 10개 종목 알려줘
+→ {"task":"시장순위","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":["상승률"],"rank_n":10,"conditions":{}}
+
+Q: 2025-07-15 급락률 상위 5개 종목 알려줘
+→ {"task":"시장순위","date":"2025-07-15","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":["하락률"],"rank_n":5,"conditions":{}}
+
+Q: 2025-05-10 삼성전자·NAVER 변동성과 베타 알려줘
+→ {"task":"시장순위","date":"2025-05-10","date_from":null,"date_to":null,"market":null,"tickers":["삼성전자","NAVER"],"metrics":["변동성","베타"],"rank_n":null,"conditions":{}}
+
+Q: 2025-05-10 KOSPI 변동성이 가장 낮은 10개 종목은?
+→ {"task":"시장순위","date":"2025-05-10","date_from":null,"date_to":null,"market":"KOSPI","tickers":[],"metrics":["변동성"],"rank_n":10,"conditions":{"order":"low"}}
+
+Q: 2025-05-10 베타가 가장 낮은 종목 Top 5 알려줘
+→ {"task":"시장순위","date":"2025-05-10","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":["베타"],"rank_n":5,"conditions":{"order":"low"}}
+
+Q: 2025-05-10 KOSPI 변동성이 가장 높은 10개 종목은?
+→ {"task":"시장순위","date":"2025-05-10","date_from":null,"date_to":null,"market":"KOSPI","tickers":[],"metrics":["변동성"],"rank_n":10,"conditions":{"order":"high"}}
+
+Q: 2025-05-10 베타가 가장 높은 종목 Top 5 알려줘
+→ {"task":"시장순위","date":"2025-05-10","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":["베타"],"rank_n":5,"conditions":{"order":"high"}}
+
+Q: 2025-05-10 삼성전자 변동성 알려줘
+→ {"task":"단순조회","date":"2025-05-10","date_from":null,"date_to":null,"market":null,"tickers":["삼성전자"],"metrics":["변동성"],"rank_n":null,"conditions":{}}
+
+Q: 2025-05-10 삼성전자, NAVER, 카카오 변동성·베타 알려줘
+→ {"task":"단순조회","date":"2025-05-10","date_from":null,"date_to":null,"market":null,"tickers":["삼성전자","NAVER","카카오"],"metrics":["변동성","베타"],"rank_n":null,"conditions":{}}
+
+Q. 2025-06-17 변동성이 가장 높은 종목 top 10은?
+→ {"task":"시장순위","date":"2025-06-17","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":["변동성"],"rank_n":10,"conditions":{"order":"high"}}

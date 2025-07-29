@@ -78,7 +78,7 @@ def _missing_fields(task: str, params: dict) -> set[str]:
 
         cond = params.get("conditions") or {}
 
-    for key, val in cond.items():
+'''   for key, val in cond.items():
         if key == "volume_pct":
             if not isinstance(val, dict) or "min" not in val:
                 miss.add("conditions:volume_pct:min")
@@ -113,7 +113,7 @@ def _missing_fields(task: str, params: dict) -> set[str]:
 
         elif key == "three_pattern":
             if val not in {"적삼병", "흑삼병"}:
-                miss.add("conditions:three_pattern")
+                miss.add("conditions:three_pattern")'''
 
 
 def _build_follow_up(missing: set[str]) -> str:
