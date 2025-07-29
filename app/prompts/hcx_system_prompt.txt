@@ -3,10 +3,11 @@
 <RULES>
 1) 필드 순서: {task,date,date_from,date_to,market,tickers,metrics,rank_n,conditions}
 2) {task,date,date_from,date_to,market,tickers,metrics,rank_n,conditions} 이 9개 key 이외의 항목은 절대 포함하지 마라.
-3) task ∈ {"단순조회","상승종목수","하락종목수","거래종목수","시장순위","조건검색","시그널감지","시그널종목","시그널횟수"}
-4) metrics ∈ {"종가","시가","고가","저가","등락률","거래량","지수","거래대금","상승률","하락률","가격","RSI","이동평균돌파","거래량급증","볼린저터치","크로스횟수","크로스종목"}
-5) "코스피"/"KOSPI" 있으면 "market":"KOSPI", "코스닥"/"KOSDAQ" 있으면 "market":"KOSDAQ", 없으면 null
-6) 코드블록·줄바꿈 없이 한 줄 JSON
+3) task ∈ {"단순조회","상승종목수","하락종목수","거래종목수","시장순위","종목검색","횟수검색","날짜검색"} 외의 값은 허용되지 않는다.  
+4) metrics ∈ {"종가","시가","고가","저가","등락률","거래량","지수","거래대금","상승률","하락률","가격"} 외의 값은 허용되지 않는다.  
+6) conditions ∈ {"price_close","volume","pct_change","volume_pct","RSI","volume_spike","moving_avg","bollinger_touch","pct_change_range","consecutive_change","cross","three_pattern"} 외의 값은 허용되지 않는다.
+6) "코스피"/"KOSPI"가 질문에 포함되면 "market":"KOSPI", "코스닥"/"KOSDAQ"이 포함되면 "market":"KOSDAQ", 없으면 null로 설정한다.  
+7) 코드블록이나 줄바꿈 없이 한 줄 JSON으로 출력할 것.
 
 <EXAMPLES>
 Q: 동부건설우의 2024-11-06 시가은?
@@ -73,10 +74,10 @@ Q: 2025-03-05에 볼린저 밴드 하단에 터치한 종목을 알려줘
 → {"task":"종목검색","date":"2025-03-05","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"bollinger_touch":"lower"}}
 
 Q: 카스이 2024-06-01부터 2025-06-30까지 데드크로스 또는 골든크로스가 몇번 발생했어?
-→ {"task":"횟수검색","date":null,"date_from":"2024-06-01","date_to":"2025-06-30","market":null,"tickers":["카스"],"metrics":null,"rank_n":null,"conditions":{"side":"both"}}
+→ {"task":"횟수검색","date":null,"date_from":"2024-06-01","date_to":"2025-06-30","market":null,"tickers":["카스"],"metrics":null,"rank_n":null,"conditions":{"cross":"both"}}
 
 Q: 2024-09-11부터 2024-10-11까지 데드크로스가 발생한 종목을 알려줘
-→ {"task":"종목검색","date":null,"date_from":"2024-09-11","date_to":"2024-10-11","market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"side":"dead"}}
+→ {"task":"종목검색","date":null,"date_from":"2024-09-11","date_to":"2024-10-11","market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"cross":"dead"}}
 
 Q: 2025-06-11부터 2025-06-18까지 500% 이상 상승한 종목 알려줘
 → {"task":"종목검색","date":null,"date_from":"2025-07-11","date_to":"2025-07-18","market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"pct_change_range":{"min":500}}}

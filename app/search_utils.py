@@ -53,18 +53,18 @@ def search_by_consecutive_change(df: pd.DataFrame, from_date: str, to_date: str,
             out.append(t)
     return out
 
-def search_cross_count_by_stock(name: str, from_date: str, to_date: str, side: str) -> str:
+def search_cross_count_by_stock(name: str, from_date: str, to_date: str, cross: str) -> str:
     g, d = count_crosses(from_date, to_date, name)
-    if side == "golden":
+    if cross == "golden":
         return f"{name}에서 {from_date}부터 {to_date}까지 골든크로스가 발생한 횟수는 {g}번입니다."
-    elif side == "dead":
+    elif cross == "dead":
         return f"{name}에서 {from_date}부터 {to_date}까지 데드크로스가 발생한 횟수는 {d}번입니다."
-    elif side == "both":
+    elif cross == "both":
         return f"{name}에서 {from_date}부터 {to_date}까지 데드크로스는 {d}번, 골든크로스는 {g}번 발생했습니다."
     else:
         return f"{name}에서 {from_date}부터 {to_date}까지 골든크로스 {g}번, 데드크로스 {d}번 발생했습니다."
 
-def search_cross_dates_by_condition(df: pd.DataFrame, from_date: str, to_date: str, side: str, tickers: list[str]) -> list[str]:
+def search_cross_dates_by_condition(df: pd.DataFrame, from_date: str, to_date: str, cross: str, tickers: list[str]) -> list[str]:
     window_short, window_long = 5, 20
     out = []
 
@@ -83,10 +83,10 @@ def search_cross_dates_by_condition(df: pd.DataFrame, from_date: str, to_date: s
                 continue
             diff = ma_short.iloc[i] - ma_long.iloc[i]
             if prev_diff is not None:
-                if side == "golden" and prev_diff < 0 and diff > 0:
+                if cross == "golden" and prev_diff < 0 and diff > 0:
                     out.append(t)
                     break
-                if side == "dead" and prev_diff > 0 and diff < 0:
+                if cross == "dead" and prev_diff > 0 and diff < 0:
                     out.append(t)
                     break
             prev_diff = diff

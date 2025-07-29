@@ -28,7 +28,7 @@ TASK_REGISTRY: Dict[str, dict] = {
     "하락종목수":  {"fn": task1_simple.handle,     "req": {"date"}},
     "거래종목수":  {"fn": task1_simple.handle,     "req": {"date"}},
     "시장순위":    {"fn": task1_simple.handle,     "req": {"date","metrics","rank_n"}},
-    "종목검색":    {"fn": task_search.handle,      "req": set()},
+    "종목검색":    {"fn": task_search.handle,      "req": {"conditions"}},
     "횟수검색":    {"fn": task_search.handle,      "req": {"date_from", "date_to", "tickers", "conditions"}},
     "날짜검색":    {"fn": task_search.handle,      "req": {"date_from", "date_to", "tickers", "conditions"}},
     }
@@ -76,16 +76,45 @@ def _missing_fields(task: str, params: dict) -> set[str]:
         if is_transaction_amount_query:
             miss.discard("tickers")
 
-    # ── (3) 삼병(적·흑) 패턴 특례 ───────────────────────────
-    mts = (params.get("metrics") or [])[:1]
-    if mts and mts[0] in THREE_PATTERN_METRICS:
-        miss.discard("conditions")
-        if task == "시그널감지":
-            miss.discard("date")
-            for k in ("date_from", "date_to"):
-                if not params.get(k):
-                    miss.add(k)
-    return miss
+        cond = params.get("conditions") or {}
+
+    for key, val in cond.items():
+        if key == "volume_pct":
+            if not isinstance(val, dict) or "min" not in val:
+                miss.add("conditions:volume_pct:min")
+
+        elif key in {"volume", "price_close", "pct_change", "pct_change_range"}:
+            if not isinstance(val, dict) or not ("min" in val or "max" in val):
+                miss.add(f"conditions:{key}:min_or_max")
+
+        elif key == "moving_avg":
+            if not isinstance(val, dict) or "window" not in val:
+                miss.add("conditions:moving_avg:window")
+            if not isinstance(val, dict) or "diff_pct" not in val:
+                miss.add("conditions:moving_avg:diff_pct")
+
+        elif key == "volume_spike":
+            if not isinstance(val, dict) or "window" not in val:
+                miss.add("conditions:volume_spike:window")
+            if "volume_ratio" not in val or "min" not in val["volume_ratio"]:
+                miss.add("conditions:volume_spike:volume_ratio_min")
+
+        elif key == "bollinger_touch":
+            if val not in {"upper", "lower"}:
+                miss.add("conditions:bollinger_touch")
+
+        elif key == "cross":
+            if val not in {"dead", "golden", "both"}:
+                miss.add("conditions:cross")
+
+        elif key == "consecutive_change":
+            if val not in {"up", "down"}:
+                miss.add("conditions:consecutive_change")
+
+        elif key == "three_pattern":
+            if val not in {"적삼병", "흑삼병"}:
+                miss.add("conditions:three_pattern")
+
 
 def _build_follow_up(missing: set[str]) -> str:
     qmap = {
@@ -95,6 +124,19 @@ def _build_follow_up(missing: set[str]) -> str:
         "rank_n":  "상위 몇 개 종목을 원하시는지",
         "conditions": "검색 조건(등락률·거래량 조건 등)이 무엇인지",
         "market":  "KOSPI·KOSDAQ 중 어느 시장인지",                 # 지수 질문에 필요. 추후 확인 필요
+        "conditions:volume_pct:min": "거래량 변화율의 최소값이 무엇인지",
+        "conditions:volume:min_or_max": "거래량의 최소 또는 최대값이 무엇인지",
+        "conditions:price_close:min_or_max": "종가의 최소 또는 최대값이 무엇인지",
+        "conditions:pct_change:min_or_max": "등락률의 최소 또는 최대값이 무엇인지",
+        "conditions:pct_change_range:min_or_max": "기간 수익률의 최소 또는 최대값이 무엇인지",
+        "conditions:moving_avg:window": "이동평균 비교 시 기준 기간이 무엇인지",
+        "conditions:moving_avg:diff_pct": "이동평균과의 차이 비율(%)이 얼마나 되는지",
+        "conditions:volume_spike:window": "이동평균 기간(일)이 얼마인지",
+        "conditions:volume_spike:volume_ratio_min": "거래량 급등의 기준(%)이 무엇인지",
+        "conditions:bollinger_touch": "볼린저 밴드의 상단 또는 하단 중 어느 쪽을 의미하는지",
+        "conditions:cross": "크로스 종류(데드/골든/양쪽) 중 무엇인지",
+        "conditions:consecutive_change": "연속 상승 또는 하락 중 어느 쪽을 의미하는지",
+        "conditions:three_pattern": "적삼병 또는 흑삼병 중 어떤 패턴인지",
     }
     asks = [qmap[f] for f in missing if f in qmap]
     return "질문을 더 정확히 이해하기 위해 " + " / ".join(asks) + " 알려주세요."
