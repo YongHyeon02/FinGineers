@@ -421,3 +421,111 @@ def search_by_volume_pct(df: pd.DataFrame, date: str, cond: dict, tickers: list[
             continue
         result.append(t)
     return result
+
+
+# ────────────────────────── 2. 52주 신고가/신저가 & 고점 대비 ──────────────────────────
+def _window_slice(sr: pd.Series, date: str, period_days: int) -> pd.Series:
+    """date 포함, 과거 period_days 만큼 슬라이스(데이터 부족 시 가능한 범위)"""
+    idx = sr.index.get_loc(pd.to_datetime(date))
+    start = max(0, idx - period_days + 1)
+    return sr.iloc[start : idx + 1]
+
+def detect_52w_high_break(
+    df: pd.DataFrame, date: str, period_days: int, tickers: list[str]
+) -> list[str]:
+    out = []
+    for t in tickers:
+        if (t, "Close") not in df.columns or (t, "Volume") not in df.columns:
+            continue
+        today_price = df.loc[pd.to_datetime(date), (t, "Close")]
+        vol = df.loc[pd.to_datetime(date), (t, "Volume")]
+        if pd.isna(today_price) or vol == 0:
+            continue
+        hist = df[t, "Close"].dropna()
+        if date not in hist.index:
+            continue
+        window = _window_slice(hist, date, period_days)
+        if window.empty:
+            continue
+        if today_price >= window.max():
+            out.append(t)
+    return out
+
+def detect_52w_low(
+    df: pd.DataFrame, date: str, period_days: int, tickers: list[str]
+) -> list[str]:
+    out = []
+    for t in tickers:
+        if (t, "Close") not in df.columns or (t, "Volume") not in df.columns:
+            continue
+        today_price = df.loc[pd.to_datetime(date), (t, "Close")]
+        vol = df.loc[pd.to_datetime(date), (t, "Volume")]
+        if pd.isna(today_price) or vol == 0:
+            continue
+        hist = df[t, "Close"].dropna()
+        if date not in hist.index:
+            continue
+        window = _window_slice(hist, date, period_days)
+        if window.empty:
+            continue
+        if today_price <= window.min():
+            out.append(t)
+    return out
+
+def detect_off_peak(
+    df: pd.DataFrame, date: str, period_days: int, drop_pct: float, tickers: list[str]
+) -> list[str]:
+    out = []
+    for t in tickers:
+        if (t, "Close") not in df.columns or (t, "Volume") not in df.columns:
+            continue
+        today_price = df.loc[pd.to_datetime(date), (t, "Close")]
+        vol = df.loc[pd.to_datetime(date), (t, "Volume")]
+        if pd.isna(today_price) or vol == 0:
+            continue
+        hist = df[t, "Close"].dropna()
+        if date not in hist.index:
+            continue
+        window = _window_slice(hist, date, period_days)
+        if window.empty:
+            continue
+        peak = window.max()
+        if peak == 0:
+            continue
+        pct_down = (peak - today_price) / peak * 100
+        if pct_down >= drop_pct:
+            out.append(t)
+    return out
+
+
+# ────────────────────────── 3. 갭 상승, 갭 하락 ──────────────────────────
+def search_by_gap_pct(df: pd.DataFrame, date: str, cond: dict,
+                      tickers: list[str]) -> list[str]:
+    """
+    (Open_today − Close_prev) / Close_prev × 100  ← ‘갭 %’
+    cond = {"min": 5}  → min 이상   (갭상승)
+            {"max": -5} → max 이하 (갭하락)
+    """
+    try:
+        today = df.loc[pd.to_datetime(date)]
+        prev  = df.loc[pd.to_datetime(_prev_bday(date))]
+    except KeyError:
+        return []
+
+    gmin, gmax = cond.get("min"), cond.get("max")
+    out = []
+    for t in tickers:
+        if (t, "Open") not in today or (t, "Close") not in prev \
+           or (t, "Volume") not in today:
+            continue
+        o = today[(t, "Open")]
+        c = prev[(t, "Close")]
+        v = today[(t, "Volume")]
+        if any(pd.isna(x) or x == 0 for x in (o, c, v)):
+            continue
+        gap = (o - c) / c * 100
+        if (gmin is not None and gap < gmin) or (gmax is not None and gap > gmax):
+            continue
+        out.append(t)
+    return out
+
