@@ -30,7 +30,7 @@ while True:
         resp = requests.get(url, headers=headers, params=params, timeout=5).json()
 
         # 응답 출력
-        print("Bot:", resp["answer"])
+        print("Bot:", resp["answer"], resp["session_id"])
 
         # 응답에 session_id가 있으면 유지
         cid = resp.get("session_id", cid)

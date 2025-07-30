@@ -13,20 +13,73 @@ HyperCLOVA API와 yfinance 실시간·과거 데이터를 결합하여 **금융 
 | **분야** | AI Tech |
 | **팀원** | 조용현 · 박선홍       |
 
-## 3. 핵심 특징
+## 3. API 사용법
 
-### 3-1. yfinance 데이터 캐싱
+
+### 요청 형식
+
+[HTTP Method & URL]
+GET /agent?question=질문내용
+
+URL: http://49.50.131.34:8000/agent
+
+[필수 헤더]
+
+- Authorization: Bearer API_KEY 
+- X-NCP-CLOVASTUDIO-REQUEST-ID: 세션 ID 
+
+  (선택. 없으면 서버가 자동 생성, 멀티턴 문답 시 세션 ID 필요)
+
+### 요청 예시 (Python)
+
+```python
+import requests
+
+API_KEY = "nv-xxx..."
+SESSION_ID = "23ef..."  # 첫 요청(멀티턴 X)은 생략 가능
+
+response = requests.get(
+    "http://49.50.131.34:8000/agent",
+    params={"question": "2025년 6월 11일에 삼성전자의 종가는?"},
+    headers={
+        "Authorization": f"Bearer {API_KEY}",
+        "X-NCP-CLOVASTUDIO-REQUEST-ID": SESSION_ID  # 첫 요청(멀티턴 X)은 생략 가능
+    }
+)
+
+print(response.json())
+```
+
+### 응답 형식
+
+```json
+{
+  "answer": "2025-06-11 기준 종가는 71,300원입니다.",
+  "session_id": "abc123..."
+}
+```
+멀티턴 질문으로 다음 HTTP request 시 전 request에서 response로 받은 Session ID를 다음 request 헤더의   X-NCP-CLOVASTUDIO-REQUEST-ID에 넣어야 함
+
+### 에러 응답 예시
+
+- 400: 질문이 비어 있음
+- 401: API 키 누락 또는 형식 오류
+
+
+## 4. 핵심 특징
+
+### 4-1. yfinance 데이터 캐싱
 * `app/yf_cache.py`  
   * **프리패치**: `2024-01-01 ~ 2025-07-31` 구간은 Parquet 캐시만 사용 → 네트워크 호출 *0*  
   * 미캐시 구간은 즉시 호출 후 저장  
 * `scripts/prefetch_yf.py` CLI로 대량 사전 수집 및 레이트-리밋 자동 처리
 
-### 3-2. 영업일 계산 & 휴장일 메시지
+### 4-2. 영업일 계산 & 휴장일 메시지
 * `pandas_market_calendars`의 `XKRX` 달력 사용  
 * 비영업일 질의 시 `_holiday_msg()`가  
   `YYYY-MM-DD는 휴장일입니다. 데이터가 없습니다.` 반환
 
-### 3-3. Ticker 디스앰비규에이션
+### 4-3. Ticker 디스앰비규에이션
 
 | 단계 | 방법                     | 설명                                              |
 | ---- | ------------------------ | ------------------------------------------------- |
@@ -36,37 +89,6 @@ HyperCLOVA API와 yfinance 실시간·과거 데이터를 결합하여 **금융 
 | ④    | **HCX Re-ranking**      | 후보를 HyperCLOVA가 최종 선택 (conf ≥ 0.82)       |
 
 모호하면 `AmbiguousTickerError`를 발생시켜 **후속 재질문** 유도. Fuzzy와 Sentence-BERT 임베딩 상위 후보를 예시로 제시.
-
-## 4. FastAPI 엔드포인트 & 세션 관리
-
-### 4-1. `/agent` 엔드포인트
-| Method | URL | Query Param | Header (선택) | 설명 |
-| ------ | --- | ----------- | ------------- | ---- |
-| **GET** | `/agent` | `question=<사용자 질문>` | `X-NCP-CLOVASTUDIO-REQUEST-ID=<UUID>` | 자연어 질문을 HCX-005 → 파라미터 추출 → Task Handler로 전달하여 답변 |
-
-- **세션 식별자**  
-  - 프론트엔드가 `X-NCP-CLOVASTUDIO-REQUEST-ID` 헤더를 보내면 해당 값으로 세션을 고정한다.  
-  - 없으면 서버에서 임의 UUID를 발급하여 `session_id` 필드로 반환한다.
-
-- **응답 JSON**
-  ```json
-  {
-    "answer": "…자연어 답변…",
-    "session_id": "3a17b8f7-…"
-  }
-  ```
-
-### 4-2. 인-메모리 세션 캐시 `app/session.py`
-- **키**: `cond_id` (session_id)
-- **값**: 슬롯-필링 도중 완성되지 않은 params 딕셔너리
-- 후속 질의가 오면 부족한 슬롯만 채워서 같은 Task 핸들러로 재시도 ➜ 문맥 유지
-    ```
-    U: 삼성전자, NAVER 종가는?
-    A: 질문에 명확하게 대답하기 위해 날짜를 알려주세요
-    
-    U: 2025-07-29
-    A: 70,600원
-    ```
 
 ## 5. Task 별 구현
 
@@ -87,8 +109,56 @@ HyperCLOVA API와 yfinance 실시간·과거 데이터를 결합하여 **금융 
 
 ### 5-2. Task 2 & Task 3 — 조건검색·시그널 감지
 
-- `search_utils.py`에 핵심 로직 구현 완료  
-- 핸들러 연결 시 △이동평균 골든크로스 △RSI △볼린저 밴드 등 다양한 신호 처리 가능하도록 설계  
+| 기능(메서드)                             | 설명                                                                 |
+|------------------------------------------|----------------------------------------------------------------------|
+| `종가 조건` `search_by_price_close()`     | 특정 날짜 기준 종가의 최소/최대 조건 필터링                         |
+| `거래량 조건` `search_by_volume()`        | 특정 날짜 기준 거래량 최소/최대 조건 필터링                         |
+| `등락률 조건` `search_by_pct_change()`    | 특정 날짜 기준 등락률(%) 최소/최대 조건 필터링                      |
+| `전일대비 거래량 증가` `search_by_volume_pct()` | 거래량 전일 대비 증가율(%) 조건 필터링                              |
+| `RSI 과매수/과매도` `detect_rsi()`        | 14일 RSI 기준 필터링    |
+| `거래량 급증` `detect_volume_spike()`     | 과거 N일 평균 대비 급등한 종목 탐지 |
+| `이동평균 돌파` `detect_ma_break()`         | 종가가 이동평균선에서 벗어난 종목 탐지 |
+| `볼린저밴드 터치` `detect_bollinger_touch()` | 종가가 상단/하단 밴드에 접촉한 종목 탐지   |
+| `기간 등락률 범위` `search_by_pct_change_range()` | 주어진 기간 동안 등락률 범위 내 종목 필터링                         |
+| `연속 상승/하락` `search_by_consecutive_change()` | N일 연속 상승/하락한 종목 필터링                                   |
+| `골든/데드크로스` `search_cross_dates_by_condition()` | 기간 중 단/장기 이평선의 골든/데드크로스 발생 종목 탐색            |
+| `크로스 발생 횟수` `search_cross_count_by_stock()` | 특정 종목의 기간 내 크로스 발생 횟수 계산                          |
+
+ #### **기본 설정값 적용**
+
+  | 조건 유형          | 기본값                                      |
+  |-------------------|---------------------------------------------|
+  | RSI               | 기간: 14일, RSI 값 미설정 시 과매수=70, 과매도=30   |
+  | 거래량 급증         | 기간: 20일             |
+  | 이동평균 돌파       | 기간: 20일           |
+  | 볼린저밴드 터치   | 기간: 20일, 편차: 2 |
+---
+
+- **다중 조건 AND 검색**  
+  하나의 질문에 여러 조건이 포함될 경우, 해당 조건을 **모두 만족하는 종목만 반환**
+  추가로 구현한 적/흑삼병, 신고/저가 등의 종목 질문도 다중 조건에 포함해서 질문 가능
+
+- **거래량 0 제외**  
+  거래량이 0인 종목은 **모든 조건 필터링 및 결과 출력에서 자동 제외**
+
+- **기본 설정값 적용**
+
+  | 조건 유형          | 기본값                                      |
+  |-------------------|---------------------------------------------|
+  | RSI               | 기간: 14일, 과매수=70, 과매도=30   |
+  | 거래량 급증         | 기간: 20일             |
+  | 이동평균 돌파       | 기간: 20일           |
+  | 볼린저밴드 터치   | 기간: 20일, 편차: 2 |
+
+- **대화 예시**
+`U:`는 사용자(질문), `A:`는 Fin Agent(응답)입니다.
+```text
+U: 2025년 5월 30일에 등락률이 +10% 이상인 과매수 종목 알려줘  
+A: 2025-05-30에 등락률이 10% 이상 상승인, RSI가 70 이상인 종목은 다음과 같습니다.  
+   DH오토리드, DH오토웨어, ... (이하 생략)
+```
+---
+
 
 ---
 
@@ -141,20 +211,3 @@ A: 2025-07-29(최근 영업일) 기준 상승률 TOP 10은 다음과 같습니�
    시디즈, 에코프로머티... (이하 생략)
 ```
 
-## 6. 설치 & 실행
-
-```bash
-# 1) 의존성 설치
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-
-# 2) yfinance 캐싱 (선택. 테스트 서버에는 사전에 캐싱 완료)
-python -m scripts.prefetch_yf --start 2025-07-01 --end 2025-07-31
-```
-
-**예시 요청**
-
-```bash
-curl -G 'http://localhost:8000/agent' \
-     --data-urlencode "question=2025-07-15에 시가가 전일 종가 대비 5% 이상 갭상승한 종목 알려줘"
-```

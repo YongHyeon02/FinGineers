@@ -1,8 +1,8 @@
 from __future__ import annotations
-from app.utils import _universe, _holiday_msg
+from app.utils import _universe, _holiday_msg, _prev_bday, _nth_prev_bday
 from app.data_fetcher import _download, _next_day
 from app.ticker_lookup import to_ticker
-from app.universe import NAME_BY_TICKER
+from app.universe import NAME_BY_TICKER, KOSPI_TICKERS, KOSDAQ_TICKERS
 from app.search_utils import (
     search_by_pct_change_range,
     search_by_consecutive_change,
@@ -41,16 +41,6 @@ def handle(_: str, p: dict, api_key: str) -> str:
 
 # ───────────────────────────── 종목검색 ─────────────────────────────
 def _handle_stock_search(p: dict) -> str:
-    from app.universe import NAME_BY_TICKER, KOSPI_TICKERS, KOSDAQ_TICKERS
-    from app.data_fetcher import _download
-    from app.utils import _next_day
-    from app.search_utils import (
-        search_by_price_close, search_by_volume, search_by_pct_change, search_by_volume_pct,
-        detect_rsi, detect_volume_spike, detect_ma_break, detect_bollinger_touch,
-        search_by_pct_change_range, search_by_consecutive_change,
-        search_cross_dates_by_condition, three_pattern_tickers,
-    )
-
     cond = p.get("conditions", {})
     date = p.get("date")
     date_from = p.get("date_from")
@@ -64,7 +54,7 @@ def _handle_stock_search(p: dict) -> str:
         def _need_history_depth(cond: dict) -> int:
             days = 0
             if "pct_change" in cond or "volume_pct" in cond:
-                days = max(days, 2)
+                days = max(days, 1)
             if "RSI" in cond:
                 days = max(days, cond["RSI"].get("window", 14))
             if "volume_spike" in cond:
@@ -78,13 +68,13 @@ def _handle_stock_search(p: dict) -> str:
                                  cond.get("peak_low", {}).get("period_days",
                                  cond.get("off_peak", {}).get("period_days", 260))))
             if "gap_pct" in cond:
-                days = max(days, 2)
+                days = max(days, 1)
             if "net_buy" in cond:
-                days = max(days, 2)
-            return days * 2
-
+                days = max(days, 1)
+            return days
+        
         depth = _need_history_depth(cond)
-        start = (pd.to_datetime(date) - pd.Timedelta(days=depth)).strftime("%Y-%m-%d")
+        start = _nth_prev_bday(date, depth)
         end = _next_day(date)
 
         tickers = tuple(_universe(market))
@@ -128,7 +118,8 @@ def _handle_stock_search(p: dict) -> str:
             return "조건에 맞는 종목이 없습니다."
 
         names = [NAME_BY_TICKER.get(t, t) for t in result]
-        return f"종목은 다음과 같습니다.\n" + ", ".join(sorted(names))
+        desc = _describe_conditions(date, cond)
+        return desc + "\n" + ", ".join(sorted(names))
 
     # ───────────────────── 기간 조건 처리 ─────────────────────
     elif date_from and date_to:
@@ -141,13 +132,10 @@ def _handle_stock_search(p: dict) -> str:
 
         if "pct_change_range" in cond:
             result = search_by_pct_change_range(df, date_from, date_to, cond["pct_change_range"], result)
-
         if "consecutive_change" in cond:
             result = search_by_consecutive_change(df, date_from, date_to, cond["consecutive_change"], result)
-
         if "cross" in cond:
             result = search_cross_dates_by_condition(df, date_from, date_to, cond["cross"], result)
-
         if "three_pattern" in cond:
             result = three_pattern_tickers(df, cond["three_pattern"], date_from, date_to, result)
 
@@ -155,7 +143,9 @@ def _handle_stock_search(p: dict) -> str:
             return "조건에 맞는 종목이 없습니다."
 
         names = [NAME_BY_TICKER.get(t, t) for t in sorted(result)]
-        return f"종목은 다음과 같습니다.\n" + ", ".join(names)
+        desc = _describe_range_conditions(date_from, date_to, cond)
+        return desc + "\n" + ", ".join(names)
+
 
     # ───────────────────── 날짜 없음 ─────────────────────
     else:
@@ -184,3 +174,129 @@ def _handle_date_search(p: dict, api_key: str) -> str:
         return three_pattern_dates(ticker, cond["three_pattern"], date_from, date_to)
 
     return "[ERROR] 지원하지 않는 날짜검색 조건입니다."
+
+def _describe_conditions(date: str, cond: dict) -> str:
+    parts = []
+
+    def pct(x): return f"{x}%" if isinstance(x, (int, float)) else str(x)
+
+    if "price_close" in cond:
+        sub = cond["price_close"]
+        rng = []
+        if "min" in sub: rng.append(f"{sub['min']}원 이상")
+        if "max" in sub: rng.append(f"{sub['max']}원 이하")
+        parts.append(f"종가가 {', '.join(rng)}인")
+
+    if "volume" in cond:
+        sub = cond["volume"]
+        rng = []
+        if "min" in sub: rng.append(f"{sub['min']}주 이상")
+        if "max" in sub: rng.append(f"{sub['max']}주 이하")
+        parts.append(f"거래량이 {', '.join(rng)}인")
+
+    if "pct_change" in cond:
+        sub = cond["pct_change"]
+        rng = []
+        if "min" in sub: rng.append(f"{pct(sub['min'])} 이상 상승")
+        if "max" in sub: rng.append(f"{pct(sub['max'])} 이하 하락")
+        parts.append(f"등락률이 {', '.join(rng)}인")
+
+    if "volume_pct" in cond:
+        sub = cond["volume_pct"]
+        parts.append(f"전일 대비 거래량이 {pct(sub['min'])} 이상 증가한")
+
+    if "RSI" in cond:
+        sub = cond["RSI"]
+        if "min" in sub:
+            parts.append(f"RSI가 {sub['min']} 이상인")
+        elif "max" in sub:
+            parts.append(f"RSI가 {sub['max']} 이하인")
+        else:
+            parts.append("RSI 과매수/과매도 상태인")
+
+    if "volume_spike" in cond:
+        sub = cond["volume_spike"]
+        window = sub.get("window", 20)
+        ratio = sub.get("volume_ratio", {}).get("min", None)
+        if ratio:
+            parts.append(f"거래량이 {window}일 평균 대비 {pct(ratio)} 이상 급증한")
+
+    if "moving_avg" in cond:
+        sub = cond["moving_avg"]
+        window = sub.get("window")
+        threshold = sub.get("diff_pct", {}).get("min", 0)
+        parts.append(f"종가가 {window}일 이동평균선보다 {pct(threshold)} 이상 높은")
+
+    if "bollinger_touch" in cond:
+        b = cond["bollinger_touch"]
+        if b == "upper":
+            parts.append("볼린저밴드 상단을 터치한")
+        elif b == "lower":
+            parts.append("볼린저밴드 하단을 터치한")
+
+    if "peak_break" in cond:
+        days = cond["peak_break"].get("period_days", 260)
+        parts.append(f"{days}일 내 신고가를 돌파한")
+
+    if "peak_low" in cond:
+        days = cond["peak_low"].get("period_days", 260)
+        parts.append(f"{days}일 내 신저가를 갱신한")
+
+    if "off_peak" in cond:
+        days = cond["off_peak"].get("period_days", 260)
+        drop = cond["off_peak"].get("min", 30)
+        parts.append(f"{days}일 고점 대비 {pct(drop)} 이상 하락한")
+
+    if "gap_pct" in cond:
+        sub = cond["gap_pct"]
+        rng = []
+        if "min" in sub: rng.append(f"갭상승 {pct(sub['min'])} 이상")
+        if "max" in sub: rng.append(f"갭하락 {pct(sub['max'])} 이하")
+        parts.append(", ".join(rng))
+
+    if not parts:
+        return f"{date} 기준 조건에 부합하는 종목은 다음과 같습니다."
+
+    desc = f"{date}에 " + ", ".join(parts) + " 종목은 다음과 같습니다."
+    return desc
+
+def _describe_range_conditions(date_from: str, date_to: str, cond: dict) -> str:
+    parts = []
+
+    def pct(x): return f"{x}%" if isinstance(x, (int, float)) else str(x)
+
+    if "pct_change_range" in cond:
+        sub = cond["pct_change_range"]
+        rng = []
+        if "min" in sub: rng.append(f"{pct(sub['min'])} 이상 상승")
+        if "max" in sub: rng.append(f"{pct(sub['max'])} 이하 하락")
+        parts.append(f"주가가 {', '.join(rng)}한")
+
+    if "consecutive_change" in cond:
+        direction = cond["consecutive_change"]
+        if direction == "up":
+            parts.append(f"연속 상승한")
+        elif direction == "down":
+            parts.append(f"연속 하락한")
+
+    if "cross" in cond:
+        side = cond["cross"].get("side")
+        if side == "golden":
+            parts.append("골든크로스가 발생한")
+        elif side == "dead":
+            parts.append("데드크로스가 발생한")
+        elif side == "both":
+            parts.append("골든/데드크로스가 발생한")
+
+    if "three_pattern" in cond:
+        pattern = cond["three_pattern"]
+        if pattern == "적삼병":
+            parts.append("적삼병 패턴이 나타난")
+        elif pattern == "흑삼병":
+            parts.append("흑삼병 패턴이 나타난")
+
+    if not parts:
+        return f"{date_from}부터 {date_to}까지 조건에 부합하는 종목은 다음과 같습니다."
+
+    desc = f"{date_from}부터 {date_to}까지 " + ", ".join(parts) + " 종목은 다음과 같습니다."
+    return desc

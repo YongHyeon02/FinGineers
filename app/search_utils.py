@@ -399,7 +399,7 @@ def search_by_pct_change(df: pd.DataFrame, date: str, cond: dict, tickers: list[
     dmin, dmax = cond.get("min"), cond.get("max")
     result = []
     for t in tickers:
-        if (t, "Close") not in today or (t, "Close") not in yest or (t, "Volume") not in today:
+        if (t, "Close") not in today or (t, "Close") not in yest or (t, "Volume") not in today: 
             continue
         c1 = today[(t, "Close")]
         c0 = yest[(t, "Close")]
@@ -421,6 +421,7 @@ def search_by_volume_pct(df: pd.DataFrame, date: str, cond: dict, tickers: list[
 
     vmin, vmax = cond.get("min"), cond.get("max")
     result = []
+
     for t in tickers:
         if (t, "Volume") not in today or (t, "Volume") not in yest:
             continue

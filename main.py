@@ -5,15 +5,11 @@ from app.session import new_id, clear
 
 app = FastAPI()
 
-SESSION_POOL = {}
-
 @app.get("/agent")
 async def handle_agent(request: Request):
     question = request.query_params.get("question", "").strip()
-    session_id = (
-        request.headers.get("X-NCP-CLOVASTUDIO-REQUEST-ID") or
-        request.query_params.get("session_id", "")
-    ).strip()
+    session_id = request.headers.get("X-NCP-CLOVASTUDIO-REQUEST-ID")
+    cid = session_id.strip() if session_id else new_id()
 
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
@@ -24,11 +20,9 @@ async def handle_agent(request: Request):
     if not question:
         return JSONResponse(content={"answer": "질문이 비어 있습니다."}, status_code=400)
 
-    cid = session_id or new_id()
-
     answer = route(question, cid, api_key)
 
     if not answer.startswith("종목명 인식에 실패하였습니다.") or not answer.endswith("알려 드릴까요?"):
         clear(cid)
 
-    return JSONResponse(content={"answer": answer})
+    return JSONResponse(content={"answer": answer, "session_id": cid})

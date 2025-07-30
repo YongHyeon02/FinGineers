@@ -162,6 +162,15 @@ def extract_params(question: str, api_key: str) -> Dict[str, Any]:
         data.setdefault("metrics", [])
         data.setdefault("rank_n", _DEF_TOPN)
         data.setdefault("conditions", {})
+    
+        cond = data["conditions"]
+        if "volume_spike" in cond:
+            spike = cond["volume_spike"]
+            if spike.get("window") == 1 and "volume_ratio" in spike:
+                # 전날 대비라면 volume_pct로 해석
+                data["conditions"]["volume_pct"] = spike["volume_ratio"]
+                del data["conditions"]["volume_spike"]    
+        
         return data
 
     logger.warning("HCX 파싱 실패: %s", question)

@@ -4,8 +4,7 @@ def extract_expected(line: str) -> set[str]:
     return {re.sub(r"\([^)]*\)", "", s).strip() for s in line.split(",") if s.strip()}
 
 def extract_actual(line: str) -> set[str]:
-    tokens = [s.strip() for s in line.split(",")]
-    return {s for s in tokens if re.search(r"[가-힣]", s)}
+    return {s.strip() for s in line.split(",") if s.strip()}
 
 def process_file(filepath: str):
     with open(filepath, "r", encoding="utf-8") as f:
@@ -53,4 +52,4 @@ def process_file(filepath: str):
 
 
 # 실행
-process_file("a.out")
+process_file("signal.out")

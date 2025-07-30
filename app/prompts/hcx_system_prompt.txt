@@ -244,3 +244,9 @@ Q: 2024-04-04 삼성전자, NAVER, 카카오 변동성·beta 알려줘
 
 Q. 2025-06-17 변동성이 가장 높은 종목 top 10은?
 → {"task":"시장순위","date":"2025-06-17","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":["변동성"],"rank_n":10,"conditions":{"order":"high"}}
+
+Q. 2025-03-10에 종가가 20일 이동평균보다 10% 이상 높고, RSI가 20 이하인 과매도 종목을 알려줘
+→ {'task':'종목검색','date':'2025-03-10','date_from':None,'date_to':None,'market':None,'tickers':[],'metrics':None,'rank_n':None,'conditions':{'moving_avg':{'window':20,'diff_pct':{'min':10}},'RSI':{'max':20}}}
+
+Q. 2025-06-11에 거래량이 20일 평균 대비 500% 이상 높은 과매수 종목을 알려줘
+→ {'task':'종목검색','date':'2025-06-11','date_from':None,'date_to':None,'market':None,'tickers':[],'metrics':None,'rank_n':None,'conditions':{'volume_spike':{'window':20,'volume_ratio':{'min' 500}},'RSI':{'min':70}}}
