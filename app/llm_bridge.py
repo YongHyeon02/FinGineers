@@ -209,7 +209,7 @@ def fill_missing_multi(user_reply: str, slots: list[str], api_key: str) -> Optio
     sys_prompt = (
         "당신은 한국 주식 질의용 AI이다.\n"
         f"사용자 답변에서 다음 필드({slot_line})의 값을 추출해 **JSON 한 줄**로만 응답하라.\n"
-        f"** {sample} ** 와 같은 형식을 꼭 준수하라.\n"
+        f"** {sample} ** 형식을 반드시 준수하라.\n"
         "값이 없으면 <value> 자리에 null을 입력하라.\n"
         "{\"date\"에 대해서는 {\"date\":\"YYYY-MM-DD\"} 형태로 반환하라.\n"
         "{\"date_from\"에 대해서는 {\"date_from\":\"YYYY-MM-DD\"} 형태로 반환하라.\n"
