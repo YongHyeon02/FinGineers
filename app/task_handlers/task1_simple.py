@@ -23,7 +23,7 @@ from config import AmbiguousTickerError
 
 
 # ──────────────────────────────
-FIELD_MAP = {"종가": "Close", "시가": "Open", "고가": "High", "저가": "Low", "등락률": "%Change"}
+FIELD_MAP = {"종가": "Close", "시가": "Open", "고가": "High", "저가": "Low", "pct_change": "%Change", "거래량": "Volume"}
 TICK2NAME: Dict[str, str] = {v: k for k, v in {**KOSPI_MAP, **KOSDAQ_MAP}.items()}
 
                    # 지난 7 일 안에서 직전 거래일 탐색
@@ -41,7 +41,7 @@ def _fmt(val, kind):
         return f"{int(val):,}주"
     if kind in {"변동성", "베타"}:
         return f"{val:.3f}" if kind == "변동성" else f"{val:.2f}"
-    if kind == "등락률":
+    if kind == "pct_change":
         return f"{val:+.2f}%"
     return f"{val:,.0f}원"
 
@@ -59,7 +59,9 @@ def _answer_multi(params: dict, api_key: str) -> str:
         except AmbiguousTickerError as e:
             raise
         except Exception:                                    # 완전 미인식
-            cands = disambiguate_ticker_hcx(alias, api_key)[:6]
+            all_names = list(KOSPI_MAP.keys()) + list(KOSDAQ_MAP.keys())
+            best, _ = disambiguate_ticker_hcx(alias, all_names, api_key)
+            cands = [best] + [n for n in all_names if n != best][:5]
             raise AmbiguousTickerError(alias, cands)
 
         tic, name = info.ticker, info.name
@@ -81,14 +83,14 @@ def _answer_multi(params: dict, api_key: str) -> str:
                 parts.append(f"{m} {_fmt(val if ok else None, m)}")
 
         # ② 등락률 ────────────────────────────
-        if "등락률" in metrics:
+        if "pct_change" in metrics:
             try:
                 p_today = get_price_on_date(tic, date, "Close")
                 _, p_prev = _find_prev_close(tic, date)
                 pct = (p_today - p_prev) / p_prev * 100 if p_prev else None
             except Exception:
                 pct = None
-            parts.append(f"등락률 {_fmt(pct, '등락률')}")
+            parts.append(f"등락률 {_fmt(pct, 'pct_change')}")
 
         # ③ 변동성 / 베타 ───────────────────────
         if "변동성" in metrics:
@@ -120,7 +122,7 @@ def _answer_price(params: dict, api_key: str) -> str:
     ticker, off_name = info.ticker, info.name
 
     # 가격 데이터가 없는 주식(거래정지) → 0 처리
-    if field_ko == "등락률":
+    if field_ko == "pct_change":
         try:
             p_today = get_price_on_date(ticker, date, "Close")
             _, p_prev = _find_prev_close(ticker, date)
@@ -142,7 +144,8 @@ def _answer_price(params: dict, api_key: str) -> str:
         return f"{date}에 {off_name}의 {field_ko} 데이터를 찾을 수 없습니다"
     if vol in (None, 0) or price in (None, 0):
         return f"{date}에 {off_name}은(는) 거래되지 않았습니다."
-    value = f"{price:,.0f}원"
+    unit = "주" if field_ko == "거래량" else "원"
+    value = f"{price:,.0f}{unit}"
     return f"{date}에 {off_name}의 {field_ko}은(는) {value} 입니다."
 
 def _answer_index(date: str, market: str, ticker: str) -> str:
@@ -482,12 +485,12 @@ def handle(_: str, p: dict, api_key: str) -> str:
     if task == "단순조회":
         metric = p["metrics"][0]
         metric_set = set(p["metrics"])
-        if metric_set <= {"종가","시가","고가","저가","등락률","거래량","변동성","베타"}:
+        if metric_set <= {"종가","시가","고가","저가","pct_change","거래량","변동성","베타"}:
             if len(p["tickers"]) > 1 or len(metric_set) > 1:
-                return _answer_multi(p)
+                return _answer_multi(p, api_key)
             if metric_set & {"변동성", "베타"}:
                 return _answer_risk_single(p["date"], p["tickers"], p["metrics"], p.get("market"), api_key)
-            if metric_set <= {"종가","시가","고가","저가","등락률","거래량"}:
+            if metric_set <= {"종가","시가","고가","저가","pct_change","거래량"}:
                 return _answer_price(p, api_key)
         if metric == "지수":
             mkt = p.get("market")
@@ -544,7 +547,7 @@ def handle(_: str, p: dict, api_key: str) -> str:
                 return f"{p['date']}에 {market_txt}{metric}이(가) 가장{order_txt}은 {names} 입니다."
             return f"{p['date']}에 {market_txt}{metric}이(가) 가장 높은 종목은 {names} 입니다."
         return (
-            f"{p['date']}에 {market_txt}{metric}{order_txt} 상위 {n}개 종목은 다음과 같습니다.\n"
+            f"{p['date']}에 {market_txt}{metric} 상위 {n}개 종목은 다음과 같습니다.\n"
             f"{names}"
         )
 

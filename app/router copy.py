@@ -387,13 +387,12 @@ def _check_and_prompt(task: str, p: dict) -> tuple[bool, str | None, list[str]]:
                         miss.add(f"{pdays if pdays else '며칠'} 대비 {mval if mval else '몇'}% 이상 하락한")
   
                 merged_text = " · ".join(sorted(not_miss | miss))
-                missing_slots = _collect_missing_cond(cond)
                 if not date and miss:
-                    return False, f"어떤 날짜에 {merged_text} 종목을 알려 드릴까요?", ["date"] + missing_slots
+                    return False, f"어떤 날짜에 {merged_text} 종목을 알려 드릴까요?", ["date", "condition"]
                 if not date and not miss:
                     return False, f"어떤 날짜에 {merged_text} 종목을 알려 드릴까요?", ["date"]
                 if miss:
-                    return False, f"{date}에 {merged_text} 종목을 알려 드릴까요?", missing_slots
+                    return False, f"{date}에 {merged_text} 종목을 알려 드릴까요?", ["condition"]
                 return True, None, []
             
             if key in {"pct_change_range", "consecutive_change", "cross", "three_pattern"}:
@@ -538,11 +537,7 @@ def route(question: str, conv_id: str, api_key: str) -> str:
             if pending.get("_missing"):
                 filled = fill_missing_multi(question, pending["_missing"], api_key)
             if filled:
-                for k, v in filled.items():
-                    if "." in k:
-                        _walk_set(pending.setdefault("conditions", {}), k.split("."), v)
-                    else:
-                        pending[k] = v
+                pending.update(filled)
                 pending["_missing"] = [s for s in pending["_missing"] if pending.get(s) in (None, [], "", {})]
             
             # ── 1-b. 새로 추가로 들어온 정보는 기존 파서로 병합

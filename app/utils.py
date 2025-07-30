@@ -79,6 +79,8 @@ def _holiday_msg(date: str) -> str | None:
     * 한국거래소 영업일이 아니면 → "YYYY-MM-DD는 휴장일입니다. 데이터가 없습니다."
     * 영업일이면 None
     """
+    if date == None:
+        return None
     ts = pd.Timestamp(date)
     if _XKRX_CAL.schedule(start_date=ts, end_date=ts).empty:
         return f"{date}는 휴장일입니다. 데이터가 없습니다."

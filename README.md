@@ -158,21 +158,3 @@ python -m scripts.prefetch_yf --start 2025-07-01 --end 2025-07-31
 curl -G 'http://localhost:8000/agent' \
      --data-urlencode "question=2025-07-15에 시가가 전일 종가 대비 5% 이상 갭상승한 종목 알려줘"
 ```
-
-## 7. 디렉터리 구조 (발췌)
-
-```text
-├─ app/
-│  ├─ router.py              # 요청 라우팅
-│  ├─ llm_bridge.py          # HCX 연동·파라미터 추출
-│  ├─ task_handlers/
-│  │   ├─ task1_simple.py    # Task 1: 단순 조회
-│  │   ├─ task_search.py     # Task 2·3: 조건검색·시그널 감지
-│  │   └─ ...                # Task 4·5: 모호한 의미 해석·고급 패턴
-│  ├─ search_utils.py        # 조건 검색·패턴 감지
-│  ├─ utils.py               # 휴장일·공통 유틸
-│  └─ yf_cache.py            # yfinance 캐시 래퍼
-├─ data/                     # CSV & Parquet 캐시
-└─ scripts/
-   └─ prefetch_yf.py         # 대량 캐시 다운로드
-```

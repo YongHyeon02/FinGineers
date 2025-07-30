@@ -9,10 +9,10 @@ from __future__ import annotations
 import json, os, uuid, logging, functools, re, datetime as dt
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-
+import re
 import requests
 import time
-from app.constants import TASK_REQUIRED
+# from app.constants import TASK_REQUIRED
 from config import HCX_CONF_THRESHOLD
 # from app.parsers import _regex_parse      # 순환 참조 방지
 
@@ -83,6 +83,35 @@ def _hcx_chat(messages: List[dict], *, api_key: str, max_tokens: int = 256, temp
         logger.exception("HCX 요청 실패: %s", e)
         return None
     
+_ALNUM_RE = re.compile(r'[^A-Za-z0-9-]+')
+
+def _strip_alphanum(val: Any) -> Any:
+    """
+    단일 값에 대해 영문·숫자만 남긴다.
+    숫자만 남으면 int 로, 그 외는 문자열 그대로.
+    """
+    if isinstance(val, str):
+        cleaned = _ALNUM_RE.sub('', val)
+        return int(cleaned) if cleaned.isdigit() else cleaned
+    if isinstance(val, list):
+        return [_strip_alphanum(x) for x in val]
+    if isinstance(val, dict):
+        return {k: _strip_alphanum(v) for k, v in val.items()}
+    return val
+
+_EXCEPT_KEYS = {"date", "date_from", "date_to",
+                "metrics", "market", "tickers", "rank_n"}
+
+def _clean_params(data: dict) -> dict:
+    """
+    파라미터 dict를 돌며, 예외 키를 제외한 모든 value에
+    _strip_alphanum() 을 적용한다.
+    """
+    out = {}
+    for k, v in data.items():
+        out[k] = v if k in _EXCEPT_KEYS else _strip_alphanum(v)
+    return out
+
 # ────────────────────────── ① 최초 질문 파싱 ─────────────────────────
 _JSON_EXPECT     = {"task","date","date_from","date_to","market","tickers","metrics","rank_n","conditions"}
 _JSON_EXPECT_MIN = {"task"}
@@ -160,21 +189,49 @@ def fill_missing(user_reply: str, slot: str, api_key: str) -> dict | None:
         max_tokens=64, temperature=0.2,
     ) or ""
     data = _safe_json(hcx_ans)
+    data = _clean_params(data)
     if isinstance(data, dict) and slot in data and data[slot]:
         return data
     logger.debug("fill_missing 실패(slot=%s): %s", slot, hcx_ans)
     return None
 
-# ──────────────────── ③ 필수 필드 누락 체크 ────────────────────
-def _check_missing(params: Dict[str, Any]) -> set[str]:
-    """task 별 필수-필드 누락 항목 반환"""
-    req = TASK_REQUIRED.get(params.get("task"), set())
-    missing = {f for f in req if not params.get(f)}
-    if "metrics" in req and not params.get("metrics"):
-        missing.add("metrics")
-    if "tickers" in req and not params.get("tickers"):
-        missing.add("tickers")
-    return missing
+def fill_missing_multi(user_reply: str, slots: list[str], api_key: str) -> Optional[dict]:
+    """
+    사용자의 후속 답변에서 `slots` 에 해당하는 값만 추출 → {slot: value, …}
+    실패 시 None
+    """
+    if not slots:
+        return {}
+
+    # ① 시스템 프롬프트 작성
+    slot_line = ", ".join(slots)
+    sample = "{" + ", ".join(f'"{s}": "<value>"' for s in slots) + "}"
+    sys_prompt = (
+        "당신은 한국 주식 질의용 AI이다.\n"
+        f"사용자 답변에서 다음 필드({slot_line})의 값을 추출해 **JSON 한 줄**로만 응답하라.\n"
+        f"** {sample} ** 와 같은 형식을 꼭 준수하라.\n"
+        "값이 없으면 <value> 자리에 null을 입력하라.\n"
+        "{\"date\"에 대해서는 {\"date\":\"YYYY-MM-DD\"} 형태로 반환하라.\n"
+        "{\"date_from\"에 대해서는 {\"date_from\":\"YYYY-MM-DD\"} 형태로 반환하라.\n"
+        "{\"date_to\"에 대해서는 {\"date_to\":\"YYYY-MM-DD\"} 형태로 반환하라.\n"
+        "{\"metrics\"에 대해서는 {\"metrics\":[\"종가\", \"거래량\"]} 형태로 반환하라. metrics ∈ {\"종가\",\"시가\",\"고가\",\"저가\",\"pct_change\",\"거래량\",\"지수\",\"거래대금\",\"상승률\",\"하락률\",\"가격\",\"변동성\",\"베타\"} 외의 값은 허용되지 않는다.\n"
+        "{\"tickers\"에 대해서는 {\"tickers\":[\"삼성전자\"]} 형태로 종목명을 반환하라.\n"
+        "\"코스피\"/\"KOSPI\"가 질문에 포함되면 \"market\":\"KOSPI\", \"코스닥\"/\"KOSDAQ\"이 포함되면 \"market\":\"KOSDAQ\", 없으면 null로 반환하라."
+    )
+    print(sys_prompt)
+
+    # ② HCX 호출
+    ans = _hcx_chat(
+        [{"role": "system", "content": sys_prompt},
+         {"role": "user",   "content": user_reply}],
+        api_key=api_key,
+        max_tokens=128,
+        temperature=0.2,
+    ) or ""
+    print(ans)
+    data = _safe_json(ans) or {}
+    data = _clean_params(data)
+    return {k: v for k, v in data.items() if k in slots and v not in (None, "", [])} or None
 
 # ──────────────────── 티커 디스앰비규에이션 ─────────────────────
 _DISAMBIG_SYS = """
@@ -221,126 +278,3 @@ def disambiguate_ticker_hcx(alias: str, candidates: list[str], api_key: str) -> 
 def is_confident(conf: float) -> bool:
     """HCX confidence 가 임계치 이상인지 여부"""
     return conf >= HCX_CONF_THRESHOLD
-
-
-
-# @functools.lru_cache(maxsize=128)
-# def _call_hyperclova(question: str) -> str | None:
-#     api_key = os.getenv("HYPERCLOVA_API_KEY")
-#     if not api_key: # or os.getenv("DRY_RUN") == "1":
-#         logger.info("HyperCLOVA 호출 건너뜀")
-#         return None
-
-#     headers = {
-#         "Authorization": f"Bearer {api_key}",
-#         "X-NCP-CLOVASTUDIO-REQUEST-ID": str(uuid.uuid4()),
-#         "Content-Type": "application/json; charset=utf-8",
-#         "Accept": "application/json",
-#     }
-
-#     payload: Dict[str, Any] = {
-#         "messages": [
-#             {"role": "system", "content": SYSTEM_PROMPT}
-#             {"role": "user", "content": question},
-#         ],
-#         "topP": 0.8,
-#         "topK": 0,
-#         "maxTokens": 256,
-#         "temperature": 0.5,
-#         "repetitionPenalty": 1.1,
-#         "includeAiFilters": False,
-#     }
-
-#     try:
-#         r = requests.post(_API_URL, headers=headers, json=payload, timeout=_TIMEOUT)
-#         r.raise_for_status()
-#         data = r.json()
-#         logger.debug("HCX full JSON: %s", json.dumps(data, ensure_ascii=False))
-#         content = (
-#             data.get("choices", [{}])[0].get("message", {}).get("content")
-#             or data.get("result", {}).get("message", {}).get("content")
-#             or ""
-#         ).strip()
-#         logger.debug("HCX raw answer: %s", content)
-#         return content
-#     except Exception as e:
-#         logger.exception("HyperCLOVA 요청 실패: %s", e)
-#         return None
-
-# # ─────────────────── 파라미터 추출 ───────────────────
-# _JSON_EXPECT = {
-#     "task", "date", "market", "tickers",
-#     "metrics", "rank_n", "conditions"
-# }
-# _JSON_EXPECT_MIN = {"task"}        # task 만 있으면 진행
-# _DEF_DATE   = (dt.date.today() - dt.timedelta(days=1)).isoformat()
-# _FALLBACK = {"task": "ambiguous"}
-
-# _DEF_PERIOD, _DEF_TOPN = 20, 10
-
-# # ──────────────────────────────────────────────────────────────
-# # Ambiguous 전용 경량 파서
-# #   – extract_params() 결과 중 task=="ambiguous" 일 때
-# #   – Task 4 핸들러(app/task_handlers/task4_ambiguous.py)가
-# #     기대하는 4개 필드(intent · period_days · top_n · threshold_pct)만
-# #     추려서 반환
-# # ----------------------------------------------------------------
-# def extract_ambiguous_params(question: str) -> dict:
-#     data = extract_params(question)          # 기존 범용 파서 재사용
-#     if data.get("task") != "ambiguous":
-#         return {}
-
-#     # ① intent 결정
-#     cond = (data.get("conditions") or {}).get("change_pct", {})
-#     op   = cond.get("op")
-#     intent = (
-#         "top_gainers" if op in (">", ">=") else
-#         "off_peak"   if op in ("<", "<=") else
-#         "top_gainers"
-#     )
-
-#     # ② 나머지 파라미터
-#     return {
-#         "intent": intent,
-#         "period_days": cond.get("period_days", _DEF_PERIOD),
-#         "top_n": data.get("rank_n", _DEF_TOPN),
-#         "threshold_pct": cond.get("value", 0),
-#     }
-
-# # ────────────── 최상위 파라미터 추출 진입점 ──────────────
-# @functools.lru_cache(maxsize=256)
-# def extract_params(question: str) -> Dict[str, Any]:
-#     """
-#     ① 규칙 파서 → ② HCX JSON → ③ 실패 시 'ambiguous'
-#     """
-#     from app.parsers import _regex_parse           # 순환참조 방지
-#     prim = _regex_parse(question)
-#     # 규칙 파서가 date·task 등 **모든** 필드를 채웠는지 확인
-#     if prim and _JSON_EXPECT.issubset(prim):
-#         return prim
-
-#     raw = _call_hyperclova(question) or ""
-#     data = _safe_json(raw) or {}
-#     if _JSON_EXPECT_MIN.issubset(data):
-#         # 날짜 등 일부 빠진 경우 prim → data 머지
-#         data.setdefault("date",   _DEF_DATE)
-#         data.setdefault("market", None)           # null 처리
-#         data.setdefault("tickers", [])
-#         data.setdefault("metrics", ["change_pct"])
-#         data.setdefault("rank_n", _DEF_TOPN)
-#         data.setdefault("conditions", {})
-#         return data
-
-#     logger.warning("HCX 파싱 실패·fallback → ambiguous")
-#     return _FALLBACK
-
-# def _check_missing(data: Dict[str, Any]) -> set[str]:
-#     """필수값 누락 항목 반환"""
-#     req = TASK_REQUIRED.get(data.get("task"), set())
-#     missing = {f for f in req if not data.get(f)}
-#     # metrics·tickers는 빈 리스트도 누락으로 간주
-#     if "metrics" in req and not data.get("metrics"):
-#         missing.add("metrics")
-#     if "tickers" in req and not data.get("tickers"):
-#         missing.add("tickers")
-#     return missing
