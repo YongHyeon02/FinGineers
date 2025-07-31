@@ -393,9 +393,11 @@ def search_by_pct_change(df: pd.DataFrame, date: str, cond: dict, tickers: list[
     try:
         today = df.loc[pd.to_datetime(date)]
         yest = df.loc[pd.to_datetime(_prev_bday(date))]
+        
     except KeyError:
         return []
-
+    print(today)
+    print(yest)
     dmin, dmax = cond.get("min"), cond.get("max")
     result = []
     for t in tickers:

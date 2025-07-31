@@ -9,7 +9,7 @@ from __future__ import annotations
 import json, os, uuid, logging, functools, re, datetime as dt
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-import re
+import copy
 import requests
 import time
 # from app.constants import TASK_REQUIRED
@@ -119,7 +119,7 @@ _DEF_DATE        = (dt.date.today() - dt.timedelta(days=1)).isoformat()
 _DEF_TOPN        = 10
 
 @functools.lru_cache(maxsize=256)
-def extract_params(question: str, api_key: str) -> Dict[str, Any]:
+def _extract_params_cached(question: str, api_key: str) -> Dict[str, Any]:
     """
     HCX 호출 후 결과 파싱 + 기본 필드 보정
     """
@@ -176,7 +176,11 @@ def extract_params(question: str, api_key: str) -> Dict[str, Any]:
     logger.warning("HCX 파싱 실패: %s", question)
     return {"task": "unknown"}
 
-
+def extract_params(question: str, api_key: str) -> dict:
+    """
+    캐시된 원본을 손상시키지 않기 위해 deepcopy 해서 반환
+    """
+    return copy.deepcopy(_extract_params_cached(question, api_key))
 # ────────────────────────── ② 슬롯 전용 파서 ─────────────────────────
 _FOLLOW_PROMPTS_PATH = Path(__file__).with_name("prompts") / "follow_prompt.json"
 try:

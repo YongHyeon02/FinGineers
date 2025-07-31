@@ -106,37 +106,37 @@ def _prev_bday(date: str, lookback_days: int = 20) -> str:
 def _next_day(date: str) -> str:
     return (pd.Timestamp(date) + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
 
-# def _nth_prev_bday(date: str, n: int) -> str:
-#     if n < 1: return date
-#     """
-#     주어진 날짜 기준 n 영업일 전(한국 거래일)을 'YYYY-MM-DD' 문자열로 반환
-#     """
-#     ts = pd.Timestamp(date)
-#     lookback_days = n + 10  # n일 확보를 위한 여유 기간
-
-#     start = ts - pd.Timedelta(days=lookback_days)
-#     sched = _XKRX_CAL.schedule(start_date=start, end_date=ts)
-#     days = sched.index
-
-#     if days.empty or len(days) <= n:
-#         raise ValueError(f"{date} 기준 {n} 영업일 전을 찾기에 거래일이 부족합니다.")
-
-#     if ts in days:
-#         target = days[-(n + 1)]
-#     else:
-#         target = days[-n]
-
-#     return target.strftime("%Y-%m-%d")
-
 def _nth_prev_bday(date: str, n: int) -> str:
+    if n < 1: return date
     """
-    주어진 날짜(date) 기준 n 영업일 전(KRX 캘린더)을 'YYYY-MM-DD' 문자열로 반환한다.
-      • n이 0 이하이면 입력 날짜 그대로 반환
-      • pandas CustomBusinessDay 오프셋을 사용해 휴장일·주말 자동 건너뜀
+    주어진 날짜 기준 n 영업일 전(한국 거래일)을 'YYYY-MM-DD' 문자열로 반환
     """
-    if n < 1:
-        return date                     # 0·음수 보호
-
     ts = pd.Timestamp(date)
-    target = ts - _BDAY * n             # _BDAY = CustomBusinessDay(calendar=_XKRX_CAL)
+    lookback_days = int(n * 2 + 10)  # n일 확보를 위한 여유 기간
+
+    start = ts - pd.Timedelta(days=lookback_days)
+    sched = _XKRX_CAL.schedule(start_date=start, end_date=ts)
+    days = sched.index
+
+    if days.empty or len(days) <= n:
+        raise ValueError(f"{date} 기준 {n} 영업일 전을 찾기에 거래일이 부족합니다.")
+
+    if ts in days:
+        target = days[-(n + 1)]
+    else:
+        target = days[-n]
+
     return target.strftime("%Y-%m-%d")
+
+# def _nth_prev_bday(date: str, n: int) -> str:
+#     """
+#     주어진 날짜(date) 기준 n 영업일 전(KRX 캘린더)을 'YYYY-MM-DD' 문자열로 반환한다.
+#       • n이 0 이하이면 입력 날짜 그대로 반환
+#       • pandas CustomBusinessDay 오프셋을 사용해 휴장일·주말 자동 건너뜀
+#     """
+#     if n < 1:
+#         return date                     # 0·음수 보호
+
+#     ts = pd.Timestamp(date)
+#     target = ts - _BDAY * n             # _BDAY = CustomBusinessDay(calendar=_XKRX_CAL)
+#     return target.strftime("%Y-%m-%d")
