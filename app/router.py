@@ -9,6 +9,7 @@ from app.llm_bridge import extract_params, fill_missing, fill_missing_multi
 from app.task_handlers import (
     task_search,
     task1_simple,
+    task_compare,
 )
 from config import AmbiguousTickerError
 
@@ -160,6 +161,7 @@ TASK_REGISTRY: Dict[str, Dict[str, HandlerFn]] = {
     "종목검색":   {"fn": task_search.handle},
     "횟수검색":   {"fn": task_search.handle},
     "날짜검색":   {"fn": task_search.handle},
+    "비교질문":   {"fn": task_compare.handle},
 }
 
 # ──────────────────────────────────────────────
@@ -535,6 +537,60 @@ def _check_and_prompt(task: str, p: dict) -> tuple[bool, str | None, list[str]]:
         if not tickers:
             return False, f"{date_from}~{date_to} 기간에 어떤 종목의 {merged_text} 날짜를 알려 드릴까요?", ["tickers"]
         return True, None, []
+    
+        # ────────────────────────────────────── 비교질문
+    if task == "비교질문":
+        date     = p.get("date")
+        tickers  = p.get("tickers", [])
+        metrics  = p.get("metrics", [])
+        metric   = metrics[0] if metrics else None
+        market   = p.get("market") or []
+        conds    = p.get("conditions", {})
+        cond_mkt = set(conds.get("market", []))  # <-- 반드시 set으로 변환!
+
+        missing = []
+        valid = False
+
+        if not date:
+            missing.append("date")
+
+        if not metrics or len(metrics) != 1:
+            missing.append("metrics")
+
+        # ───── 조건 분기
+        if metric == "지수":
+            if len(market) == 2 and not tickers:
+                valid = True
+            else:
+                missing.append("market")
+        elif len(tickers) == 2:
+            valid = True
+        elif len(tickers) == 1:
+            if cond_mkt.issubset({"KOSPI", "KOSDAQ"}):
+                valid = True
+            else:
+                missing.append("market")
+        else:
+            missing.append("tickers")
+
+        if not missing and valid:
+            return True, None, []
+
+        # ───── 재질문 구성
+        asks = []
+        if "date" in missing:
+            asks.append("어느 날짜인지")
+        if "tickers" in missing:
+            asks.append("비교할 종목이 무엇인지")
+        if "metrics" in missing:
+            asks.append("비교할 지표(예: 종가·시가·등락률·지수)가 무엇인지")
+        if "market" in missing and metric == "지수":
+            asks.append("어떤 두 시장(KOSPI·KOSDAQ)을 비교할지")
+        if "market" in missing and metric != "지수":
+            asks.append("비교 대상이 되는 시장이 KOSPI 또는 KOSDAQ인지")
+
+        return False, "질문을 더 정확히 이해하기 위해 " + " / ".join(asks) + " 알려주세요.", missing
+
 
 
 # ────────────────────────────── 메인 ──────────────────────────────

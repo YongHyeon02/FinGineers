@@ -23,7 +23,12 @@ from typing import List, Tuple, Dict
 
 import pandas as pd
 import yfinance as yf
+from yfinance import Ticker
 from yfinance.base import YFRateLimitError
+from app.ticker_lookup import to_ticker
+import json
+from pathlib import Path
+
 
 # 다음날 계산
 def _next_day(date: str) -> str:
@@ -240,3 +245,14 @@ def get_price_series(
         except KeyError:
             continue
     return out
+
+def get_index_level(market: str, date: str) -> float:
+    symbol = {"KOSPI": "^KS11", "KOSDAQ": "^KQ11"}.get(market.upper())
+    if not symbol:
+        raise ValueError(f"지원하지 않는 market: {market}")
+
+    df = _download((symbol,), start=date, end=date, interval="1d")
+    if df.empty or date not in df.index.strftime("%Y-%m-%d"):
+        raise ValueError(f"{market} 지수를 {date}에 찾을 수 없습니다.")
+
+    return float(df.loc[date, (symbol, "Close")])

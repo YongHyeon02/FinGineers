@@ -169,7 +169,10 @@ def _extract_params_cached(question: str, api_key: str) -> Dict[str, Any]:
             if spike.get("window") == 1 and "volume_ratio" in spike:
                 # 전날 대비라면 volume_pct로 해석
                 data["conditions"]["volume_pct"] = spike["volume_ratio"]
-                del data["conditions"]["volume_spike"]    
+                del data["conditions"]["volume_spike"]  
+
+        if "시장 평균" in question and not cond.get("market"):
+            cond["market"] = ["KOSPI", "KOSDAQ"]  
         
         return data
 

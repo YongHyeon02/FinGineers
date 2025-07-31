@@ -1,11 +1,11 @@
 # tests/bulk.py
-import json
+import json, time
 from pathlib import Path
 
 from app.router import route
 from app.session import new_id
 
-JSON_PATH = Path("tests/test_json/conditional_queries.json")  # 경로 필요 시 조정
+JSON_PATH = Path("tests/test_json/open_queries.json")  # 경로 필요 시 조정
 
 def is_follow_up(resp: str) -> bool:
     """
@@ -34,6 +34,7 @@ def main() -> None:
         else:
             print(f"Q: {q}\nexpected: {exp}\nactual:   {resp}\n", flush=True)
 
+        time.sleep(2)  # 너무 빠른 요청 방지
         total += 1
 
     print("\n── Summary ───────────────────────────")

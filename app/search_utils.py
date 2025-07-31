@@ -96,23 +96,31 @@ ALL = KOSPI_TICKERS + KOSDAQ_TICKERS
 
 # ───────────────────────────────────────────────
 def compute_rsi(series: pd.Series, date: str, window: int = 14) -> float | None:
-    date = pd.to_datetime(date)
-    series = series.dropna()
     if date not in series.index:
         return None
-    end_loc = series.index.get_loc(date)
-    if end_loc < window:
-        return None
-    window_series = series.iloc[end_loc - window : end_loc + 1]
-    delta = window_series.diff().iloc[1:]
-    gain = delta.clip(lower=0)
-    loss = -delta.clip(upper=0)
+
+    idx = series.index.get_loc(date)
+    if idx < window:
+        return None  # 충분한 이력이 없음
+
+    # window + 1개 구간에서 변화량 계산
+    recent = series.iloc[idx - window:idx + 1]
+    delta = recent.diff().dropna()
+
+    gain = delta.where(delta > 0, 0.0)
+    loss = -delta.where(delta < 0, 0.0)
+
     avg_gain = gain.mean()
     avg_loss = loss.mean()
+
     if avg_loss == 0:
-        return 100.0
+        return 100.0  # 완전 상승장
+    if avg_gain == 0:
+        return 0.0    # 완전 하락장
+
     rs = avg_gain / avg_loss
-    return 100 - (100 / (1 + rs))
+    rsi = 100 - (100 / (1 + rs))
+    return round(rsi, 2)
 
 # ───────────────────────────────────────────────
 def detect_rsi(df: pd.DataFrame, date: str, cond: dict, tickers: list[str]) -> list[str]:
@@ -396,8 +404,6 @@ def search_by_pct_change(df: pd.DataFrame, date: str, cond: dict, tickers: list[
         
     except KeyError:
         return []
-    print(today)
-    print(yest)
     dmin, dmax = cond.get("min"), cond.get("max")
     result = []
     for t in tickers:

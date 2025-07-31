@@ -3,7 +3,7 @@
 <RULES>
 1) 필드 순서: {task,date,date_from,date_to,market,tickers,metrics,rank_n,conditions}
 2) {task,date,date_from,date_to,market,tickers,metrics,rank_n,conditions} 이 9개 key 이외의 항목은 **절대** 포함하지 마라.
-3) task ∈ {"단순조회","상승종목수","하락종목수","거래종목수","시장순위","종목검색","횟수검색","날짜검색"} 외의 값은 **절대** 허용되지 않는다. 
+3) task ∈ {"단순조회","상승종목수","하락종목수","거래종목수","시장순위","종목검색","횟수검색","날짜검색","비교질문"} 외의 값은 **절대** 허용되지 않는다. 
 4) metrics ∈ {"종가","시가","고가","저가","pct_change","거래량","지수","거래대금","상승률","하락률","가격","변동성","베타"} 외의 값은 **절대** 허용되지 않는다.  
 5) conditions ∈ {"price_close","volume","pct_change","volume_pct","RSI","volume_spike","moving_avg","bollinger_touch","pct_change_range","consecutive_change","cross","three_pattern","order"} 외의 값은 **절대** 허용되지 않는다.
 6) "코스피"/"KOSPI"/"kospi"/"Kospi"가 질문에 포함되면 "market":"KOSPI", "코스닥"/"KOSDAQ"/"kosdaq"/"Kosdaq"이 포함되면 "market":"KOSDAQ", 없으면 null로 설정한다.  
@@ -142,6 +142,9 @@ Q: 종가가 50일 MA보다 40% 이상 높은 종목을 알려줘
 
 Q: 2024-08-02에 거래량이 20일 평균 대비 500% 이상 급증한 종목을 알려줘
 → {"task":"종목검색","date":"2024-08-02","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"volume_spike":{"window":20,"volume_ratio":{"min":500}}}}
+
+Q: 2024-11-11에 거래량이 20일 평균 대비 300% 이상 급증하고, 거래량이 50만주 이상인 종목을 알려줘
+→ {"task":"종목검색","date":"2024-11-11","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"volume_spike":{"window":20,"volume_ratio":{"min":300}}, "volume":{"min":500000}}}
 
 Q: 거래량이 30일 평균 대비 400% 이상 급증한 종목을 알려줘
 → {"task":"종목검색","date":null,"date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":null,"rank_n":null,"conditions":{"volume_spike":{"window":30,"volume_ratio":{"min":400}}}}
@@ -436,3 +439,36 @@ Q. 2025-06-11에 거래량이 20일 평균 대비 500% 이상 높은 과매수 �
 
 Q. 거래량이 45일 평균 대비 200% 이상 높은 과매수 종목을 알려줘
 → {"task":"종목검색","date":null,"date_from":None,"date_to":None,"market":None,"tickers":[],"metrics":None,"rank_n":None,"conditions":{"volume_spike":{"window":45,"volume_ratio":{"min":500}},"RSI":{"min":70}}}
+
+Q: 카카오와 현대차 중 2024-10-21에 거래량이 더 높은 종목은?
+→ {"task":"비교질문","date":"2024-10-21","date_from":null,"date_to":null,"market":null,"tickers":["카카오","현대차"],"metrics":["거래량"],"rank_n":null,"conditions":{}}
+
+Q: 삼성전자와 SK하이닉스 중 2025-06-14에 종가가 더 높은 종목은?
+→ {"task":"비교질문","date":"2025-06-14","date_from":null,"date_to":null,"market":null,"tickers":["삼성전자","SK하이닉스"],"metrics":["종가"],"rank_n":null,"conditions":{}}
+
+Q: NAVER와 카카오 중 2025-07-01에 등락률이 더 높은 종목은?
+→ {"task":"비교질문","date":"2025-07-01","date_from":null,"date_to":null,"market":null,"tickers":["NAVER","카카오"],"metrics":["pct_change"],"rank_n":null,"conditions":{}}
+
+Q: HMM과 대한항공 중 2024-12-20에 시가가 더 높은 종목은?
+→ {"task":"비교질문","date":"2024-12-20","date_from":null,"date_to":null,"market":null,"tickers":["HMM","대한항공"],"metrics":["시가"],"rank_n":null,"conditions":{}}
+
+Q: 하나금융지주와 기업은행 중 2025-01-10에 고가가 더 높은 종목은?
+→ {"task":"비교질문","date":"2025-01-10","date_from":null,"date_to":null,"market":null,"tickers":["하나금융지주","기업은행"],"metrics":["고가"],"rank_n":null,"conditions":{}}
+
+Q: LG전자와 삼성전기 중 2025-02-05에 저가가 더 낮은 종목은?
+→ {"task":"비교질문","date":"2025-02-05","date_from":null,"date_to":null,"market":null,"tickers":["LG전자","삼성전기"],"metrics":["저가"],"rank_n":null,"conditions":{}}
+
+Q: 2025-01-31에 KOSPI와 KOSDAQ 중 더 높은 지수는?
+→ {"task":"비교질문","date":"2025-01-31","date_from":null,"date_to":null,"market":["KOSPI","KOSDAQ"],"tickers":[],"metrics":["지수"],"rank_n":null,"conditions":{}}
+
+Q: 2024-07-05에 카카오뱅크의 등락률이 시장 평균보다 높은가?
+→ {"task":"비교질문","date":"2024-07-05","date_from":null,"date_to":null,"market":[],"tickers":["카카오뱅크"],"metrics":["pct_change"],"rank_n":null,"conditions":{"market":["KOSPI","KOSDAQ"]}}
+
+Q: 2024-07-05에 카카오뱅크의 등락률이 KOSPI 시장 평균보다 높은가?
+→ {"task":"비교질문","date":"2024-07-05","date_from":null,"date_to":null,"market":[],"tickers":["카카오뱅크"],"metrics":["pct_change"],"rank_n":null,"conditions":{"market":["KOSPI"]}}
+
+Q: 2025-02-10에 거래량이 더 높은 종목은?
+→ {"task":"비교질문","date":"2025-02-10","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":["거래량"],"rank_n":null,"conditions":{}}
+
+Q: 2024-08-16에 저가가 더 낮은 종목은?
+→ {"task":"비교질문","date":"2024-08-16","date_from":null,"date_to":null,"market":null,"tickers":[],"metrics":["저가"],"rank_n":null,"conditions":{}}
