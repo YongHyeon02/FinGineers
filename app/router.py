@@ -28,6 +28,8 @@ def _most_recent_bday() -> str:
 
 _recent_kw = ("최근", "요즘", "근래", "요새", "이즈음")
 _today_kw  = ("오늘", "금일", "당일", "오늘자")
+_yesterday_kw  = ("어제", "어저께", "전날", "하루 전", "하루전")
+_yday2_kw      = ("그제", "그저께", "전전날", "이틀 전", "이틀전")
 
 def _auto_fill_relative_dates(question: str, params: dict) -> None:
     """
@@ -38,8 +40,24 @@ def _auto_fill_relative_dates(question: str, params: dict) -> None:
     """
     if params.get("date") or params.get("date_to"):
         return  # 이미 값이 있으면 건너뜀
-
     q = question
+    today = dt.date.today()
+
+    # ── 1) 2일 전 ───────────────────────────────
+    if any(k in q for k in _yday2_kw):
+        target = (today - dt.timedelta(days=2)).isoformat()
+        params["date"] = target
+        if params.get("date_from"):
+            params["date_to"] = target
+        return
+    # ── 2) 1일 전 ───────────────────────────────
+    if any(k in q for k in _yesterday_kw):
+        target = (today - dt.timedelta(days=1)).isoformat()
+        params["date"] = target
+        if params.get("date_from"):
+            params["date_to"] = target
+        return
+     # ── 3) 최근 / 오늘 (기존) ──────────────────────────────
     if any(k in q for k in _recent_kw + _today_kw):
         recent = _most_recent_bday()
         params["date"] = recent
@@ -204,9 +222,9 @@ def _check_and_prompt(task: str, p: dict) -> tuple[bool, str | None, list[str]]:
             return True, None, []
         
         if missing == {"date"}:
-            return False, f"어떤 날짜의 {_join(tickers)} {_join(metrics)}를 알려 드릴까요?", list(missing)
+            return False, f"어떤 날짜의 {_join(tickers)} {_join(metrics)}을(를) 알려 드릴까요?", list(missing)
         if missing == {"tickers"}:
-            return False, f"{date or '해당 날짜'}에 어떤 종목의 {_join(metrics)}를 알려 드릴까요?", list(missing)
+            return False, f"{date or '해당 날짜'}에 어떤 종목의 {_join(metrics)}을(를) 알려 드릴까요?", list(missing)
         if missing == {"metrics"}:
             return False, f"{date or '해당 날짜'}에 {_join(tickers)}의 어떤 지표(예: 종가·시가·거래량)를 원하시나요?", list(missing)
         if missing == {"market"}:
@@ -271,7 +289,7 @@ def _check_and_prompt(task: str, p: dict) -> tuple[bool, str | None, list[str]]:
             else "하락한 종목 수" if task == "하락종목수"
             else "거래된 종목 수"
         )        
-        return False, f"어느 날짜 기준으로 {task_txt}를 알려 드릴까요?", ["date"]
+        return False, f"어느 날짜 기준으로 {task_txt}을(를) 알려 드릴까요?", ["date"]
     # ────────────────────────────────────── 종목검색 / 기간검색 / 횟수검색
     
     if task == "종목검색":
@@ -294,17 +312,15 @@ def _check_and_prompt(task: str, p: dict) -> tuple[bool, str | None, list[str]]:
                     }
                     if not isinstance(val, dict):
                         miss.add(_KOR_NAME[key] + "이 몇 이상/이하인")
-                        continue
-                    if key == "volume_pct": # (1) 거래량 %, 반드시 min
+                    elif key == "volume_pct": # (1) 거래량 %, 반드시 min
                         if "min" in val:
                             not_miss.add(f"거래량이 {val['min']}% 이상 증가한")
                         else:
                             miss.add("거래량이 몇 % 이상 증가한")
-                        continue
-                    if not (("min" in val) or ("max" in val)): # (2) 나머지: min·max 중 하나 필수
+                    elif not (("min" in val) or ("max" in val)): # (2) 나머지: min·max 중 하나 필수
                         miss.add(_KOR_NAME[key] + "이 몇 이상/이하인")
-                        continue
-                    not_miss.add(_fmt_min_max(_KOR_NAME[key], val))
+                    else:
+                        not_miss.add(_fmt_min_max(_KOR_NAME[key], val))
                 # ── 2. 거래량 급증 (volume_spike) ─────────────────
                 if key == "volume_spike": 
                     if not isinstance(val, dict):
@@ -384,7 +400,7 @@ def _check_and_prompt(task: str, p: dict) -> tuple[bool, str | None, list[str]]:
                     else:
                         pdays = (val or {}).get("period_days")
                         mval  = (val or {}).get("min")
-                        miss.add(f"{pdays if pdays else '며칠'} 대비 {mval if mval else '몇'}% 이상 하락한")
+                        miss.add(f"{str(pdays) + '일' if pdays else '며칠'} 대비 {mval if mval else '몇'}% 이상 하락한")
   
                 merged_text = " · ".join(sorted(not_miss | miss))
                 missing_slots = _collect_missing_cond(cond)
@@ -424,7 +440,7 @@ def _check_and_prompt(task: str, p: dict) -> tuple[bool, str | None, list[str]]:
                         miss.add("골든/데드/양쪽 중 어떤 크로스가 발생한")
                 # ── 4. 적삼병, 흑삼병 (three_pattern) -------------------------------------------
                 if key == "three_pattern":                    
-                    if val in {"적삼병", "흑삼병"}:
+                    if val in {"white", "black"}:
                         not_miss.add(f"{val}이 발생한")
                     else:
                         miss.add("적삼병·흑삼병 중 어떤 패턴이 발생한")
@@ -492,8 +508,8 @@ def _check_and_prompt(task: str, p: dict) -> tuple[bool, str | None, list[str]]:
         }
         pattern   = (p.get("conditions") or {}).get("three_pattern")
         pattern_map = {
-            "적삼병": "적삼병이 발생한",
-            "흑삼병": "흑삼병이 발생한",
+            "white": "적삼병이 발생한",
+            "black": "흑삼병이 발생한",
         }
         if cross:
             cond_set.add(cross_map[cross])
@@ -586,7 +602,9 @@ def route(question: str, conv_id: str, api_key: str) -> str:
             return follow_up
         
         hinfo = TASK_REGISTRY[params["task"]]
-        return _safe_handle(hinfo["fn"], question, params, api_key) or _FAIL
+        ans = _safe_handle(hinfo["fn"], question, params, api_key) or _FAIL
+        session.clear(conv_id)
+        return ans
     
     except AmbiguousTickerError as e:
         cur = session.get(conv_id)
@@ -600,7 +618,7 @@ def route(question: str, conv_id: str, api_key: str) -> str:
             session.set(conv_id, pending)
 
         sugg = " · ".join(e.candidates)
-        return f"종목명 인식에 실패하였습니다. 조회할 종목명을 정확하게 입력해 주세요 (제안: {sugg})"
+        return f"종목명 인식에 실패하였습니다: \"{e.alias}\". 조회할 종목명을 정확하게 입력해 주세요 (제안: {sugg})"
 
     except Exception as ex:
         logger.exception("route() 처리 중 예외 발생: %s", ex)

@@ -290,9 +290,9 @@ def _describe_range_conditions(date_from: str, date_to: str, cond: dict) -> str:
 
     if "three_pattern" in cond:
         pattern = cond["three_pattern"]
-        if pattern == "적삼병":
+        if pattern == "white":
             parts.append("적삼병 패턴이 나타난")
-        elif pattern == "흑삼병":
+        elif pattern == "black":
             parts.append("흑삼병 패턴이 나타난")
 
     if not parts:

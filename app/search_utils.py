@@ -300,8 +300,8 @@ def _scan_three_pattern(
             if sub_o is None or sub_c is None:
                 continue            # 자료 부족
 
-            if (pattern == "적삼병" and _white(sub_o, sub_c)) or \
-               (pattern == "흑삼병" and _black(sub_o, sub_c)):
+            if (pattern == "white" and _white(sub_o, sub_c)) or \
+               (pattern == "black" and _black(sub_o, sub_c)):
                 occurs.append((t, str(op.index[idx].date())))
     return occurs
 
@@ -334,9 +334,9 @@ def check_three_pattern_occurrence(df: pd.DataFrame, pattern: str, date_from: st
         if sub_o is None or sub_c is None:
             continue
 
-        if pattern == "적삼병" and _white(sub_o, sub_c):
+        if pattern == "white" and _white(sub_o, sub_c):
             return True
-        elif pattern == "흑삼병" and _black(sub_o, sub_c):
+        elif pattern == "black" and _black(sub_o, sub_c):
             return True
 
     return False

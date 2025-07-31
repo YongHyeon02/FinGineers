@@ -22,7 +22,7 @@ async def handle_agent(request: Request):
 
     answer = route(question, cid, api_key)
 
-    if not answer.startswith("종목명 인식에 실패하였습니다.") or not answer.endswith("알려 드릴까요?"):
+    if not (answer.startswith("종목명 인식에 실패하였습니다.") or answer.endswith("?")):
         clear(cid)
 
     return JSONResponse(content={"answer": answer, "session_id": cid})
