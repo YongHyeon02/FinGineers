@@ -234,7 +234,6 @@ def fill_missing_multi(user_reply: str, slots: list[str], api_key: str) -> Optio
         "{\"tickers\"에 대해서는 {\"tickers\":[\"삼성전자\"]} 형태로 종목명을 반환하라.\n"
         "\"코스피\"/\"KOSPI\"가 질문에 포함되면 \"market\":\"KOSPI\", \"코스닥\"/\"KOSDAQ\"이 포함되면 \"market\":\"KOSDAQ\", 없으면 null로 반환하라."
     )
-    print(sys_prompt)
 
     # ② HCX 호출
     ans = _hcx_chat(

@@ -20,7 +20,12 @@ async def handle_agent(request: Request):
     if not question:
         return JSONResponse(content={"answer": "질문이 비어 있습니다."}, status_code=400)
 
+    # 질문 처리
     answer = route(question, cid, api_key)
+
+    # 로그 출력
+    print(f"[질문] {question}")
+    print(f"[응답] {answer}")
 
     if not (answer.startswith("종목명 인식에 실패하였습니다.") or answer.endswith("?")):
         clear(cid)
