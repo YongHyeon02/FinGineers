@@ -76,9 +76,23 @@ print(response.json())
 * `app/yf_cache.py`  
   * **프리패치**: `2023-01-01 ~ 2025-07-31` 구간은 Parquet 캐시만 사용 → 네트워크 호출 *0*  **(스팩, 리츠 제외 코스피 / 코스닥)**
   * **미캐시 구간**은 yfinance 호출 후 응답. 해당 데이터는 캐싱하여 이후 질문에서 캐시된 데이터 사용 가능
+  * 
 * `scripts/prefetch_yf.py` CLI로 대량 사전 수집 및 레이트-리밋 자동 처리
 
-### 4-2. 영업일 계산 & 휴장일 메시지
+### 4-2. Rate-Limit 대응 — `app/yf_cache.assure()`
+
+  | 단계 | 로직 요약 |
+  |------|-----------|
+  | **① 캐시 미존재 티커 선별** | 입력 `tickers` 중 아직 캐시가 완전하지 않은 종목만 **todo** 리스트로 분리 |
+  | **② 다중-티커 1차 다운로드** | `todo`를 `chunk`(기본 100) 단위로 잘라 `yfinance.download()` 병렬 호출 |
+  | **③ 누락 티커 개별 조회** | batch 결과에 없던 티커는 `Ticker(t).history()`로 한 번 더 시도 |
+  | **④ 오류 분류** | <br>• `YFRateLimitError` → **rate_limited** 집합에 추가, 다음 라운드 재시도<br>• `YFPricesMissingError‧YFTzMissingError` → 상장폐지/타임존 등 **permanent_fail** 목록에 기록 |
+  | **⑤ 캐시 저장** | 정상 수신된 DF는 `save_or_append()`로 Parquet 병합 저장 |
+  | **⑥ 지수(Exponential) 백오프** | 각 라운드 끝마다 `time.sleep(pause * 1.5^(attempt-1) + rand(0~1)s)` |
+  | **⑦ 최대 `max_retry` 회 반복** | 기본 3회(`max_retry`)까지 ②-⑥ 루프, 끝나면 남은 rate-limited 티커 리스트를 반환 |
+  | **⑧ 외부 확인용 속성 노출** | 함수 종료 시 `assure.rate_limited / error_log / permanent_fail` 속성에 결과 저장 |
+
+### 4-3. 영업일 계산 & 휴장일 메시지
 * `pandas_market_calendars`의 `XKRX` 달력 사용  
 * 비영업일 질의 시 `_holiday_msg()`가  
   `YYYY-MM-DD는 휴장일입니다. 데이터가 없습니다.` 반환
