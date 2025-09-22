@@ -64,7 +64,7 @@ print(resp.json())
 }
 ```
 
-> ℹ️ **Multi‑turn**: if the agent asks a follow‑up (e.g., missing date/metric), send your next request **with the same `X-NCP-...` session ID**.
+> **Multi‑turn**: if the agent asks a follow‑up (e.g., missing date/metric), send your next request **with the same `X-NCP-...` session ID**.
 
 ---
 
